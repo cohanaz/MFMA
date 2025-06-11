@@ -435,7 +435,7 @@ if st.session_state.active_tab == 3:
                                                 augmented_records=augmentation_count, desc="target model train set")
                 st.session_state.aug_test_t_01 = pd.DataFrame(results, columns=columns)
 
-                st.session_state.augmented_results_01 = build_augmented_feature_dfs(st.session_state.shadow_models, st.session_state.shadow_splits, feature_scale=0.1, columns=columns, noise_label='1', augmented_records=augmentation_count)
+                st.session_state.augmented_results_01 = build_augmented_feature_dfs(st.session_state.shadow_models, st.session_state.shadow_splits, feature_scale=0.1, columns=columns, noise_label='01', augmented_records=augmentation_count)
             
             if 0.01 in noise_levels:
                 st.markdown("**Processing augmentation @ noise=0.01**")
@@ -447,7 +447,7 @@ if st.session_state.active_tab == 3:
                                                 augmented_records=augmentation_count, desc="target model train set")
                 st.session_state.aug_test_t_001 = pd.DataFrame(results, columns=columns)
 
-                st.session_state.augmented_results_001 = build_augmented_feature_dfs(st.session_state.shadow_models, st.session_state.shadow_splits, feature_scale=0.01, columns=columns, noise_label='1', augmented_records=augmentation_count)
+                st.session_state.augmented_results_001 = build_augmented_feature_dfs(st.session_state.shadow_models, st.session_state.shadow_splits, feature_scale=0.01, columns=columns, noise_label='001', augmented_records=augmentation_count)
             
             #st.session_state.aug_results = results
 
@@ -643,7 +643,7 @@ if st.session_state.active_tab == 4:
         if key.startswith("aug_pred_"):
             grouped["AUG_raw_preds"].append(key)
         elif key.startswith("aug_"):
-            grouped["AUG_summary"].append(key)
+            grouped["AUG_stats"].append(key)
         else:
             prefix = key.split("_")[0]
             grouped[prefix].append(key)
@@ -725,7 +725,7 @@ if st.session_state.active_tab == 4:
 
         # הוספת המטריקות
         for metric_name, value in st.session_state.metrics_target.items():
-            row[metric_name] = round(value, 4)
+            row[metric_name] = round(value, 2)
 
         # הוספת השורה לטבלה
         st.session_state.inference_results_table = pd.concat(
