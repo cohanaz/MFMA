@@ -1,0 +1,13 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+xgboost
+category_encoders
+tqdm
+art
+gradient-free-optimizers
+streamlit
+streamlit-option-menu
+
