@@ -558,9 +558,62 @@ if st.session_state.active_tab == 3:
                 test_stats = calculate_missing_stats(X_test, model, feat_importance, feat_means, strategy=strategy, n_important=n_important, desc=f"shadow model {model_idx+1} test set")
                 st.session_state.missing_test_stats.append(test_stats)
 
-                st.session_state.feature_completed[2] = True
-                st.session_state.feature_stage += 1
-                st.rerun()
+            #-----------------------------------
+            # def run_missing_stats_parallel_return(shadow_models, shadow_splits, importances, means_list, strategy, n_important):
+            #     from concurrent.futures import ProcessPoolExecutor
+            #     import time
+
+            #     train_stats_list = []
+            #     test_stats_list = []
+
+            #     for model_idx, (model, split, feat_importance, feat_means) in enumerate(zip(
+            #             shadow_models, shadow_splits, importances, means_list)):
+
+            #         X_train, X_test = split[0], split[1]
+
+            #         with st.status(f"🚀 Running model {model_idx + 1}", expanded=False) as status:
+            #             start = time.time()
+
+            #             with ProcessPoolExecutor(max_workers=2) as executor:
+            #                 future_train = executor.submit(
+            #                     calculate_missing_stats, X_train, model, feat_importance,
+            #                     feat_means, strategy=strategy, n_important=n_important,
+            #                     desc=f"Model {model_idx+1} train"
+            #                 )
+            #                 future_test = executor.submit(
+            #                     calculate_missing_stats, X_test, model, feat_importance,
+            #                     feat_means, strategy=strategy, n_important=n_important,
+            #                     desc=f"Model {model_idx+1} test"
+            #                 )
+
+            #                 train_stats = future_train.result()
+            #                 test_stats = future_test.result()
+
+            #             duration = round(time.time() - start, 2)
+            #             status.update(label=f"✅ Model {model_idx + 1} done in {duration}s", state="complete")
+
+            #             train_stats_list.append(train_stats)
+            #             test_stats_list.append(test_stats)
+
+            #     return train_stats_list, test_stats_list
+            # #-----------------------------------
+            # train_stats, test_stats = run_missing_stats_parallel_return(
+            #     shadow_models=st.session_state.shadow_models,
+            #     shadow_splits=st.session_state.shadow_splits,
+            #     importances=st.session_state.model_importances,
+            #     means_list=st.session_state.features_s_means_list,
+            #     strategy=strategy,
+            #     n_important=n_important
+            # )
+
+            # st.session_state.missing_train_stats = train_stats
+            # st.session_state.missing_test_stats = test_stats
+            # st.success("✅ All missing stats calculated and saved.")
+            #-----------------------------------
+
+            st.session_state.feature_completed[2] = True
+            st.session_state.feature_stage += 1
+            st.rerun()
 
     elif current_label == "Ensemble Variation":
         centered_col = st.columns([1, 3, 1])[1]
@@ -579,20 +632,20 @@ if st.session_state.active_tab == 3:
             st.session_state.ens_var_train_metrics = []
             st.session_state.ens_var_test_metrics = []
 
-            with st.spinner("Extracting features from shadow models..."):
-                for model_idx, (model, split) in enumerate(zip(st.session_state.shadow_models, st.session_state.shadow_splits)):
-                    X_train, X_test = split[0], split[1]
+            #with st.spinner("Extracting features from shadow models..."):
+            for model_idx, (model, split) in enumerate(zip(st.session_state.shadow_models, st.session_state.shadow_splits)):
+                X_train, X_test = split[0], split[1]
 
-                    # Train metrics
-                    train_metrics = est_func(model, X_train, desc=f"shadow model {model_idx+1} train set")
-                    st.session_state.ens_var_train_metrics.append(train_metrics)
+                # Train metrics
+                train_metrics = est_func(model, X_train, desc=f"shadow model {model_idx+1} train set")
+                st.session_state.ens_var_train_metrics.append(train_metrics)
 
-                    # Test metrics
-                    test_metrics = est_func(model, X_test, desc=f"shadow model {model_idx+1} test set")
-                    st.session_state.ens_var_test_metrics.append(test_metrics)
+                # Test metrics
+                test_metrics = est_func(model, X_test, desc=f"shadow model {model_idx+1} test set")
+                st.session_state.ens_var_test_metrics.append(test_metrics)
                 
             st.session_state.feature_completed[3] = True
-            st.success("All features computed successfully!")
+            st.toast("All features computed successfully!")
             st.session_state.feature_stage += 1
             st.rerun()
 
