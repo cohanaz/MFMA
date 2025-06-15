@@ -38,24 +38,32 @@ step_labels = [
     ("5", "Membership<br>Inference")
 ]
 
-# Top row: logo on right, title centered
-col_empty, col_title, col_logo = st.columns([1, 1, 1])
-with col_logo:
-    st.image("CBG_sicpa_logo.png", width=300, caption=None)
-with col_title:
-    st.markdown(
-        "<div style='text-align: center; font-size: 2rem; font-weight: bold;'>MFMA Wizard</div>",
-        unsafe_allow_html=True
-    )
+import base64
 
-# Explanation below title
+def image_to_base64(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+img_base64 = image_to_base64("CBG_sicpa_logo.png")
+
 st.markdown(
-    "<div style='text-align: center; color: #555; margin-bottom: 10px;'>"
-    "Multi-Feature Membership Analysis for regression models, by Tsachi Cahana"
-    "</div>",
+    f"""
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
+        <img src="data:image/png;base64,{img_base64}" width="250" style="opacity: 0.95;"/>
+    </div>
+    <div style="text-align: center; font-size: 2.2rem; font-weight: 600; margin-bottom: 5px;">
+        MFMA Wizard
+    </div>
+    <div style="text-align: center; font-size: 1rem; color: #666;">
+        Multi-Feature Membership Analysis for regression models<br>
+        <span style="font-size: 0.9rem;">by Tsachi Cahana</span>
+    </div>
+    <hr style="margin-top: 20px; margin-bottom: 10px;">
+    """,
     unsafe_allow_html=True
 )
 
+# Step bar creation
 step_bar = "<div style='display: flex; gap: 10px; justify-content: center;'>"
 for i, (num, name) in enumerate(step_labels):
     is_active = (i == st.session_state.active_tab)
@@ -341,7 +349,7 @@ if st.session_state.active_tab == 2:
             st.session_state.active_tab -= 1
             st.rerun()
     with col2:
-        if st.button("Next ➡", use_container_width=True):
+        if st.button("Next ➡", use_container_width=True, disabled=not st.session_state.shadow_models_trained):
             st.session_state.active_tab += 1
             st.rerun()
 
@@ -352,13 +360,13 @@ if st.session_state.active_tab == 2:
 if st.session_state.active_tab == 3:
     st.subheader("Step 4: Compute Attack Features")
 
-    feature_sequence = ["Error", "Augmentation", "Missing", "Ensemble Variation", "Combining"]
+    feature_sequence = ["Error", "Augmentations", "Missing", "Ensemble Variation", "Combining"]
     current = st.session_state.feature_stage
     current_label = feature_sequence[current]
 
     # Display feature progress
     completed = st.session_state.feature_completed
-    substeps = ["Error", "Augmentation", "Missing", "Ensemble Variation"]
+    substeps = ["Error", "Augmentations", "Missing", "Ensemble Variation"]
     #st.markdown("#### Feature Progress:")
     progress_col1, progress_col2, progress_col3, progress_col4 = st.columns(4)
     with progress_col1:
@@ -424,7 +432,7 @@ if st.session_state.active_tab == 3:
                     st.session_state.feature_stage += 1
                     st.rerun()
 
-    elif current_label == "Augmentation":
+    elif current_label == "Augmentations":
 
         label_col, select_col = st.columns([2, 4])
         with label_col:
@@ -571,16 +579,17 @@ if st.session_state.active_tab == 3:
             st.session_state.ens_var_train_metrics = []
             st.session_state.ens_var_test_metrics = []
 
-            for model_idx, (model, split) in enumerate(zip(st.session_state.shadow_models, st.session_state.shadow_splits)):
-                X_train, X_test = split[0], split[1]
+            with st.spinner("Extracting features from shadow models..."):
+                for model_idx, (model, split) in enumerate(zip(st.session_state.shadow_models, st.session_state.shadow_splits)):
+                    X_train, X_test = split[0], split[1]
 
-                # Train metrics
-                train_metrics = est_func(model, X_train, desc=f"shadow model {model_idx+1} train set")
-                st.session_state.ens_var_train_metrics.append(train_metrics)
+                    # Train metrics
+                    train_metrics = est_func(model, X_train, desc=f"shadow model {model_idx+1} train set")
+                    st.session_state.ens_var_train_metrics.append(train_metrics)
 
-                # Test metrics
-                test_metrics = est_func(model, X_test, desc=f"shadow model {model_idx+1} test set")
-                st.session_state.ens_var_test_metrics.append(test_metrics)
+                    # Test metrics
+                    test_metrics = est_func(model, X_test, desc=f"shadow model {model_idx+1} test set")
+                    st.session_state.ens_var_test_metrics.append(test_metrics)
                 
             st.session_state.feature_completed[3] = True
             st.success("All features computed successfully!")
@@ -588,87 +597,89 @@ if st.session_state.active_tab == 3:
             st.rerun()
 
     elif current_label == "Combining":
-        # Initialize attack dict
-        data_attack_dict = {
-            'prediction': [],
-            'error': [],
-            'membership': [],
-            'missing_preds_entropies': [],
-            'missing_preds_vars': [],
-            'ens_var_metric_1': [],
-            'ens_var_metric_2': []
-        }
+        # Show rotating spinner while combining features
+        with st.spinner("Combining all features..."):
+            # Initialize attack dict
+            data_attack_dict = {
+                'prediction': [],
+                'error': [],
+                'membership': [],
+                'missing_preds_entropies': [],
+                'missing_preds_vars': [],
+                'ens_var_metric_1': [],
+                'ens_var_metric_2': []
+            }
 
-        # Fill attack dict
-        for i in range(st.session_state.num_shadow_models):
-            data_attack_dict['prediction'] += list(st.session_state.train_s_preds_list[i]) + list(st.session_state.test_s_preds_list[i])
-            data_attack_dict['error'] += list(st.session_state.train_s_errors_list[i]) + list(st.session_state.test_s_errors_list[i])
-            data_attack_dict['missing_preds_entropies'] += list(st.session_state.missing_train_stats[i][1]) + list(st.session_state.missing_test_stats[i][1])
-            data_attack_dict['missing_preds_vars'] += list(st.session_state.missing_train_stats[i][2]) + list(st.session_state.missing_test_stats[i][2])
-            data_attack_dict['ens_var_metric_1'] += list(st.session_state.ens_var_train_metrics[i][0]) + list(st.session_state.ens_var_test_metrics[i][0])
-            data_attack_dict['ens_var_metric_2'] += list(st.session_state.ens_var_train_metrics[i][1]) + list(st.session_state.ens_var_test_metrics[i][1])
+            # Fill attack dict
+            for i in range(st.session_state.num_shadow_models):
+                data_attack_dict['prediction'] += list(st.session_state.train_s_preds_list[i]) + list(st.session_state.test_s_preds_list[i])
+                data_attack_dict['error'] += list(st.session_state.train_s_errors_list[i]) + list(st.session_state.test_s_errors_list[i])
+                data_attack_dict['missing_preds_entropies'] += list(st.session_state.missing_train_stats[i][1]) + list(st.session_state.missing_test_stats[i][1])
+                data_attack_dict['missing_preds_vars'] += list(st.session_state.missing_train_stats[i][2]) + list(st.session_state.missing_test_stats[i][2])
+                data_attack_dict['ens_var_metric_1'] += list(st.session_state.ens_var_train_metrics[i][0]) + list(st.session_state.ens_var_test_metrics[i][0])
+                data_attack_dict['ens_var_metric_2'] += list(st.session_state.ens_var_train_metrics[i][1]) + list(st.session_state.ens_var_test_metrics[i][1])
 
-            y_train = st.session_state.shadow_splits[i][3]
-            y_test = st.session_state.shadow_splits[i][4]
-            data_attack_dict['membership'] += list(np.ones(len(y_train))) + list(np.zeros(len(y_test)))
+                y_train = st.session_state.shadow_splits[i][3]
+                y_test = st.session_state.shadow_splits[i][4]
+                data_attack_dict['membership'] += list(np.ones(len(y_train))) + list(np.zeros(len(y_test)))
 
-        for key in ["augmented_results_1", "augmented_results_01", "augmented_results_001"]:
-            if key in st.session_state:
-                df = st.session_state[key]
-                for col in df.columns:
-                    if col not in ['index', 'model_id', 'split']:  # skip meta
-                        data_attack_dict[col] = list(df[col])
+            for key in ["augmented_results_1", "augmented_results_01", "augmented_results_001"]:
+                if key in st.session_state:
+                    df = st.session_state[key]
+                    for col in df.columns:
+                        if col not in ['index', 'model_id', 'split']:  # skip meta
+                            data_attack_dict[col] = list(df[col])
 
-        # Create test dict
-        data_test_dict = {
-            'prediction': list(st.session_state.train_t_preds) + list(st.session_state.test_t_preds),
-            'error': list(st.session_state.train_t_errors) + list(st.session_state.test_t_errors),
+            # Create test dict
+            data_test_dict = {
+                'prediction': list(st.session_state.train_t_preds) + list(st.session_state.test_t_preds),
+                'error': list(st.session_state.train_t_errors) + list(st.session_state.test_t_errors),
 
-            # Membership labels
-            'membership': list(np.ones(len(st.session_state.target_y_train))) + list(np.zeros(len(st.session_state.target_y_test))),
+                # Membership labels
+                'membership': list(np.ones(len(st.session_state.target_y_train))) + list(np.zeros(len(st.session_state.target_y_test))),
 
-            # Missing features
-            'missing_preds_entropies': list(st.session_state.missing_train_t_entropies) + list(st.session_state.missing_test_t_entropies),
-            'missing_preds_vars': list(st.session_state.missing_train_t_vars) + list(st.session_state.missing_test_t_vars),
-        }
-        
-        data_test_dict['ens_var_metric_1'] = list(st.session_state.ens_var_train_metric_1) + list(st.session_state.ens_var_test_metric_1)
-        data_test_dict['ens_var_metric_2'] = list(st.session_state.ens_var_train_metric_2) + list(st.session_state.ens_var_test_metric_2)
+                # Missing features
+                'missing_preds_entropies': list(st.session_state.missing_train_t_entropies) + list(st.session_state.missing_test_t_entropies),
+                'missing_preds_vars': list(st.session_state.missing_train_t_vars) + list(st.session_state.missing_test_t_vars),
+            }
+            
+            data_test_dict['ens_var_metric_1'] = list(st.session_state.ens_var_train_metric_1) + list(st.session_state.ens_var_test_metric_1)
+            data_test_dict['ens_var_metric_2'] = list(st.session_state.ens_var_train_metric_2) + list(st.session_state.ens_var_test_metric_2)
 
-        # Augmented scalar features
-        if 1.0 in st.session_state.noise_levels:
-            data_test_dict['aug_preds_var_1'] = list(st.session_state.aug_train_t_1['aug_preds_var']) + list(st.session_state.aug_test_t_1['aug_preds_var'])
-            data_test_dict['aug_preds_range_1'] = list(st.session_state.aug_train_t_1['aug_preds_range']) + list(st.session_state.aug_test_t_1['aug_preds_range'])
-            data_test_dict['aug_preds_diff_1'] = list(st.session_state.aug_train_t_1['aug_preds_diff']) + list(st.session_state.aug_test_t_1['aug_preds_diff'])
-        if 0.1 in st.session_state.noise_levels:
-            data_test_dict['aug_preds_var_01'] = list(st.session_state.aug_train_t_01['aug_preds_var']) + list(st.session_state.aug_test_t_01['aug_preds_var'])
-            data_test_dict['aug_preds_range_01'] = list(st.session_state.aug_train_t_01['aug_preds_range']) + list(st.session_state.aug_test_t_01['aug_preds_range'])
-            data_test_dict['aug_preds_diff_01'] = list(st.session_state.aug_train_t_01['aug_preds_diff']) + list(st.session_state.aug_test_t_01['aug_preds_diff'])
-        if 0.01 in st.session_state.noise_levels:
-            data_test_dict['aug_preds_var_001'] = list(st.session_state.aug_train_t_001['aug_preds_var']) + list(st.session_state.aug_test_t_001['aug_preds_var'])
-            data_test_dict['aug_preds_range_001'] = list(st.session_state.aug_train_t_001['aug_preds_range']) + list(st.session_state.aug_test_t_001['aug_preds_range'])
-            data_test_dict['aug_preds_diff_001'] = list(st.session_state.aug_train_t_001['aug_preds_diff']) + list(st.session_state.aug_test_t_001['aug_preds_diff'])
+            # Augmented scalar features
+            if 1.0 in st.session_state.noise_levels:
+                data_test_dict['aug_preds_var_1'] = list(st.session_state.aug_train_t_1['aug_preds_var']) + list(st.session_state.aug_test_t_1['aug_preds_var'])
+                data_test_dict['aug_preds_range_1'] = list(st.session_state.aug_train_t_1['aug_preds_range']) + list(st.session_state.aug_test_t_1['aug_preds_range'])
+                data_test_dict['aug_preds_diff_1'] = list(st.session_state.aug_train_t_1['aug_preds_diff']) + list(st.session_state.aug_test_t_1['aug_preds_diff'])
+            if 0.1 in st.session_state.noise_levels:
+                data_test_dict['aug_preds_var_01'] = list(st.session_state.aug_train_t_01['aug_preds_var']) + list(st.session_state.aug_test_t_01['aug_preds_var'])
+                data_test_dict['aug_preds_range_01'] = list(st.session_state.aug_train_t_01['aug_preds_range']) + list(st.session_state.aug_test_t_01['aug_preds_range'])
+                data_test_dict['aug_preds_diff_01'] = list(st.session_state.aug_train_t_01['aug_preds_diff']) + list(st.session_state.aug_test_t_01['aug_preds_diff'])
+            if 0.01 in st.session_state.noise_levels:
+                data_test_dict['aug_preds_var_001'] = list(st.session_state.aug_train_t_001['aug_preds_var']) + list(st.session_state.aug_test_t_001['aug_preds_var'])
+                data_test_dict['aug_preds_range_001'] = list(st.session_state.aug_train_t_001['aug_preds_range']) + list(st.session_state.aug_test_t_001['aug_preds_range'])
+                data_test_dict['aug_preds_diff_001'] = list(st.session_state.aug_train_t_001['aug_preds_diff']) + list(st.session_state.aug_test_t_001['aug_preds_diff'])
 
-        # Map each (train_df, test_df) to its corresponding noise label
-        aug_dfs = []
-        for suffix in ['1', '01', '001']:
-            train_key = f'aug_train_t_{suffix}'
-            test_key = f'aug_test_t_{suffix}'    
-            if train_key in st.session_state and test_key in st.session_state:
-                aug_dfs.append((st.session_state[train_key], st.session_state[test_key], suffix))
+            # Map each (train_df, test_df) to its corresponding noise label
+            aug_dfs = []
+            for suffix in ['1', '01', '001']:
+                train_key = f'aug_train_t_{suffix}'
+                test_key = f'aug_test_t_{suffix}'    
+                if train_key in st.session_state and test_key in st.session_state:
+                    aug_dfs.append((st.session_state[train_key], st.session_state[test_key], suffix))
 
-        # Add all prediction features with renamed columns
-        for aug_train_df, aug_test_df, noise_label in aug_dfs:
-            for col in aug_train_df.columns:
-                if col.startswith('aug_pred_'):
-                    # Extract the number from 'aug_pred_0' → '0'
-                    col_suffix = col.replace('aug_pred_', '')
-                    new_col = f'aug_pred_{noise_label}_{col_suffix}'
-                    data_test_dict[new_col] = list(aug_train_df[col]) + list(aug_test_df[col])
-   
-        st.session_state.data_attack_dict = data_attack_dict
-        st.session_state.data_test_dict = data_test_dict
-        st.success("All features combined successfully!")
+            # Add all prediction features with renamed columns
+            for aug_train_df, aug_test_df, noise_label in aug_dfs:
+                for col in aug_train_df.columns:
+                    if col.startswith('aug_pred_'):
+                        # Extract the number from 'aug_pred_0' → '0'
+                        col_suffix = col.replace('aug_pred_', '')
+                        new_col = f'aug_pred_{noise_label}_{col_suffix}'
+                        data_test_dict[new_col] = list(aug_train_df[col]) + list(aug_test_df[col])
+    
+            st.session_state.data_attack_dict = data_attack_dict
+            st.session_state.data_test_dict = data_test_dict
+            st.success("All features combined successfully!")
 
     st.markdown("---")
     col1, col2 = st.columns([1, 1])
@@ -687,6 +698,7 @@ if st.session_state.active_tab == 3:
 # Step 5: Train & Test Inference Model
 # -------------------------
 if st.session_state.active_tab == 4:
+
     st.subheader("Step 5: Train & Test Inference Model")
 
     # Group features by prefix
@@ -697,9 +709,11 @@ if st.session_state.active_tab == 4:
         if key in ["index", "membership"]:
             continue
         if key.startswith("aug_pred_"):
-            grouped["AUG_raw_preds"].append(key)
+            grouped["AUG_preds"].append(key)
         elif key.startswith("aug_"):
             grouped["AUG_stats"].append(key)
+        elif key.startswith("ens_"):
+            grouped["Ens_var"].append(key)
         else:
             prefix = key.split("_")[0]
             grouped[prefix].append(key)
@@ -719,6 +733,9 @@ if st.session_state.active_tab == 4:
 
         df_test = pd.DataFrame({k: v for k, v in st.session_state.data_test_dict.items() if k in selected_features})
         df_test["membership"] = st.session_state.data_test_dict["membership"]
+    else:
+        st.warning("Please select at least one feature group.")
+
 
     centered_col = st.columns([1, 3, 1])[1]
     with centered_col:
@@ -751,11 +768,11 @@ if st.session_state.active_tab == 4:
         proba_shadow_test = clf.predict_proba(X_test_att)[:, 1]
         proba_target = clf.predict_proba(Xt_attack_test)[:,1]
 
-        plot_metrics_three_sets(
+        st.session_state.infrence_results = plot_metrics_three_sets(
             (y_train_att, pred_shadow_train, proba_shadow_train),
             (y_test_att, pred_shadow_test, proba_shadow_test),
             (yt_attack_test, pred_target, proba_target),
-            labels=('Shadow train set', 'Shadow test set', 'Target')
+            labels=('Shadow train set', 'Shadow test set', '**Target set**')
         )
 
         def compute_metrics(y_true, y_pred, y_proba):
@@ -766,42 +783,98 @@ if st.session_state.active_tab == 4:
             }
 
         st.session_state.metrics_target = compute_metrics(yt_attack_test, pred_target, proba_target)
-
-    # אתחול טבלת סיכום אם לא קיימת
+    
+    # Initialize summary table if not exists
     if "inference_results_table" not in st.session_state:
-        st.session_state.inference_results_table = pd.DataFrame()
+        results_cols = []
+        for group in feature_groups:
+            results_cols.append(f"{group}")
+        results_cols.extend(["Accuracy", "AUC", "TPR@FPR=0.1"]) 
+        st.session_state.inference_results_table = pd.DataFrame(columns=results_cols)
 
-    # כפתור להוספת שורה
-    if st.button("📥 Add Target Results to Summary Table", use_container_width=True):
+    # אתחול המשתנה אם צריך
+    if "metrics_target" not in st.session_state:
+        st.session_state.metrics_target = {}
+
+    # Button to add a row
+    if st.session_state.metrics_target != {}:
+        #st.dataframe(st.session_state.infrence_results, use_container_width=True)
+        st.table(st.session_state.infrence_results)
+        col_add = st.columns([1, 2, 1])[1]
+        with col_add:
+            if st.button("📥 Add Trget Set Results to Summary Table", use_container_width=True):
+                st.session_state.add_row_requested = True
+
+    if st.session_state.get("add_row_requested", False):
         row = {}
-
-        # ציון קבוצות הפיצ'רים שנבחרו (True/False)
         for group in feature_groups:
             row[f"{group}"] = group in selected_groups
-
-        # הוספת המטריקות
         for metric_name, value in st.session_state.metrics_target.items():
             row[metric_name] = round(value, 2)
 
-        # הוספת השורה לטבלה
+        st.write("Row to add:", row)
+
         st.session_state.inference_results_table = pd.concat(
             [st.session_state.inference_results_table, pd.DataFrame([row])],
             ignore_index=True
         )
-        st.success("✅ Target results added to summary table!")
+
+        st.toast("✅ Target results added to summary table!")
+        st.session_state.metrics_target = {}
+        st.session_state.add_row_requested = False
+        st.rerun()
+
+    # Show the table
+    #if not st.session_state.inference_results_table.empty:
+    st.markdown("### 📊 Target Results Summary")
+
+    # #if not st.session_state.inference_results_table.empty:
+    df = st.session_state.inference_results_table
+
+    column_config = {}
+
+    for i, col in enumerate(df.columns):
+        column_config[col] = st.column_config.Column(width="small")
 
     # הצגת הטבלה
-    if not st.session_state.inference_results_table.empty:
-        st.markdown("### 📊 Target Results Summary")
-        st.dataframe(st.session_state.inference_results_table, use_container_width=True)
+    st.dataframe(df, use_container_width=True, hide_index=True, column_config=column_config)
 
+    # אתחול הדגל אם צריך
+    if "confirm_reset" not in st.session_state:
+        st.session_state.confirm_reset = False
 
-        #st.success("Inference model trained and applied to test data!")
-        #st.markdown(f"**TPR@FPR=0.1:** {metrics.get('tpr@fpr=0.1', 0):.2f}")
+    # כפתור איפוס ראשי
+    col_reset = st.columns([1, 2, 1])[1]
+    with col_reset:
+        if st.button("🔄 Reset Table", use_container_width=True):
+            st.session_state.confirm_reset = True
+
+    # הצגת אזהרה וכפתורי אישור אם נלחץ reset
+    if st.session_state.confirm_reset:
+        col1 = st.columns([1, 2, 1])[1]
+        with col1:
+            st.warning("⚠️ Are you sure you want to delete this item?")
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                if st.button("✅ Yes, delete", use_container_width=True):
+                    st.session_state.inference_results_table = pd.DataFrame(
+                        columns=st.session_state.inference_results_table.columns
+                    )
+                    st.session_state.metrics_target = {}
+                    st.session_state.add_row_requested = False
+                    st.session_state.confirm_reset = False
+                    st.toast("🗑️ Table reset successfully!")
+                    st.rerun()
+            with c2:
+                if st.button("❌ Cancel", use_container_width=True):
+                    st.session_state.confirm_reset = False
+                    st.rerun()
 
     st.markdown("---")
     col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("⬅ Back", use_container_width=True):
             st.session_state.active_tab -= 1
+            st.session_state.metrics_target = {}
             st.rerun()
+                                                    

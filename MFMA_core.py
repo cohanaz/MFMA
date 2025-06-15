@@ -1507,40 +1507,25 @@ def plot_metrics_three_sets(
     set3: tuple[np.ndarray, np.ndarray, np.ndarray],
     labels: tuple[str, str, str] = ('Set 1', 'Set 2', 'Set 3')
 ):
-    def compute_metrics(y_true, y_pred, y_proba):
+    def compute_the_metrics(y_true, y_pred, y_proba):
         accuracy = accuracy_score(y_true, y_pred)
         auc = roc_auc_score(y_true, y_proba)
         tpr_at_fpr_10 = compute_tpr_at_fpr(y_true, y_proba, target_fpr=0.1)
         return accuracy, auc, tpr_at_fpr_10
 
-    metrics1 = compute_metrics(*set1)
-    metrics2 = compute_metrics(*set2)
-    metrics3 = compute_metrics(*set3)
+    metrics1 = compute_the_metrics(*set1)
+    metrics2 = compute_the_metrics(*set2)
+    metrics3 = compute_the_metrics(*set3)
 
     table_data = [
-        ['Accuracy', f"{metrics1[0]:.2%}", f"{metrics2[0]:.2%}", f"{metrics3[0]:.2%}"],
-        ['AUC', f"{metrics1[1]:.2%}", f"{metrics2[1]:.2%}", f"{metrics3[1]:.2%}"],
-        ['TPR@FPR=10%', f"{metrics1[2]:.2%}", f"{metrics2[2]:.2%}", f"{metrics3[2]:.2%}"],
+        ['Accuracy', f"{metrics1[0]:.0%}", f"{metrics2[0]:.0%}", f"**{metrics3[0]:.0%}**"],
+        ['AUC', f"{metrics1[1]:.0%}", f"{metrics2[1]:.0%}", f"**{metrics3[1]:.0%}**"],
+        ['TPR@FPR=10%', f"{metrics1[2]:.0%}", f"{metrics2[2]:.0%}", f"**{metrics3[2]:.0%}**"],
     ]
 
     column_labels = ['', labels[0], labels[1], labels[2]]
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.axis('off')
-    table = ax.table(cellText=table_data, colLabels=column_labels, cellLoc='center',
-                     loc='center', colWidths=[0.25, 0.25, 0.25, 0.25])
-
-    for key, cell in table.get_celld().items():
-        if key[0] == 0:
-            cell.set_facecolor('#f1f1f1')
-            cell.set_text_props(weight='bold')
-
-    table.scale(1, 5)
-    table.auto_set_font_size(False)
-    table.set_fontsize(14)
-
-    plt.subplots_adjust(top=0.4, bottom=0.2)
-    st.pyplot(fig)
+    df = pd.DataFrame(table_data, columns=column_labels)
+    return df
 
 
 # %%
@@ -2301,6 +2286,7 @@ if __name__ == "__main__":
 import matplotlib.pyplot as plt
 import numpy as np
 import xgboost as xgb
+import pandas as pd
 
 def plot_prediction_trajectory(model, X_data, index=0):
     """
