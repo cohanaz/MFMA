@@ -29,19 +29,60 @@ if "feature_stage" not in st.session_state:
 if "feature_completed" not in st.session_state:
     st.session_state.feature_completed = [False] * 4
 
-# Wizard-style progress bar
-step_labels = ["1: Dataset", "2: Target", "3: Shadows", "4: Features", "5: Inference"]
-st.markdown("### MFMA Wizard")
+# Wizard-style progress bar (cubical, fixed size, multiline, top-aligned)
+step_labels = [
+    ("1", "Choose<br>Dataset"),
+    ("2", "Train<br>Target<br>Model"),
+    ("3", "Train<br>Shadow<br>Models"),
+    ("4", "Extract<br>Features"),
+    ("5", "Membership<br>Inference")
+]
 
-# Visual step bar using markdown and highlighting current step
-step_bar = ""
-for i, label in enumerate(step_labels):
-    if i == st.session_state.active_tab:
-        step_bar += f"<span style='color: white; background-color: #4CAF50; padding: 4px 10px; border-radius: 5px;'>{label}</span>"
-    else:
-        step_bar += f"<span style='color: #4CAF50; background-color: #E8F5E9; padding: 4px 10px; border-radius: 5px;'>{label}</span>"
+# Top row: logo on right, title centered
+col_empty, col_title, col_logo = st.columns([1, 1, 1])
+with col_logo:
+    st.image("CBG_sicpa_logo.png", width=300, caption=None)
+with col_title:
+    st.markdown(
+        "<div style='text-align: center; font-size: 2rem; font-weight: bold;'>MFMA Wizard</div>",
+        unsafe_allow_html=True
+    )
+
+# Explanation below title
+st.markdown(
+    "<div style='text-align: center; color: #555; margin-bottom: 10px;'>"
+    "Multi-Feature Membership Analysis for regression models, by Tsachi Cahana"
+    "</div>",
+    unsafe_allow_html=True
+)
+
+step_bar = "<div style='display: flex; gap: 10px; justify-content: center;'>"
+for i, (num, name) in enumerate(step_labels):
+    is_active = (i == st.session_state.active_tab)
+    bg = "#4CAF50" if is_active else "#E8F5E9"
+    color = "white" if is_active else "#4CAF50"
+    border = "2px solid #4CAF50" if is_active else "2px solid #E8F5E9"
+    step_bar += f"""
+        <div style='
+            width: 90px; height: 90px; 
+            background: {bg}; color: {color}; 
+            border-radius: 8px; 
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: flex-start;
+            font-weight: bold; font-size: 15px;
+            border: {border};
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            line-height: 1.1;
+            text-align: center;
+            padding-top: 10px;
+        '>
+            <div style='font-size: 18px; text-align: center;'>{num}</div>
+            <div style='margin-top: 2px; text-align: center;'>{name}</div>
+        </div>
+    """
     if i < len(step_labels) - 1:
-        step_bar += " <b>→</b> "
+        step_bar += "<div style='align-self: center; font-size: 22px; color: #4CAF50;'>&#8594;</div>"
+step_bar += "</div>"
 st.markdown(step_bar, unsafe_allow_html=True)
 
 st.markdown("---")
@@ -134,34 +175,38 @@ if st.session_state.active_tab == 1:
         target_column = st.selectbox("Select target column (numerical only):", numeric_columns, index=default_numeric_index)
 
         st.write("Select target model type:")
+        # Determine default index based on session state
+        model_options = ["XGBoost", "Random Forest"]
+        if "target_model_type" in st.session_state and st.session_state.target_model_type in model_options:
+            default_index = model_options.index(st.session_state.target_model_type)
+        else:
+            default_index = 0
         model_type = option_menu(
             menu_title="",
-            options=["XGBoost", "Random Forest"],
+            options=model_options,
             icons=["bar-chart-line", "tree"],
             menu_icon="cast",
-            default_index=0,
+            default_index=default_index,
             orientation="horizontal",
             styles={
-                "container": {"padding": "0!important", "background-color": "#f0f2f6", "justify-content": "center"},
-                "icon": {"color": "white", "font-size": "18px"},
-                "nav-link": {
-                    "font-size": "16px",
-                    "text-align": "center",
-                    "margin": "5px",
-                    "padding": "10px",
-                    "--hover-color": "#E8F5E9",
-                },
-                "nav-link-selected": {
-                    "background-color": "#4CAF50",
-                    "color": "white",
-                    "font-weight": "bold",
-                    "border-radius": "6px",
-                },
+            "container": {"padding": "0!important", "background-color": "#f0f2f6", "justify-content": "center"},
+            "icon": {"color": "white", "font-size": "18px"},
+            "nav-link": {
+                "font-size": "16px",
+                "text-align": "center",
+                "margin": "5px",
+                "padding": "10px",
+                "--hover-color": "#E8F5E9",
+            },
+            "nav-link-selected": {
+                "background-color": "#4CAF50",
+                "color": "white",
+                "font-weight": "bold",
+                "border-radius": "6px",
+            },
             }
         )
-
-        st.session_state.target_model_type = model_type
-        st.session_state.target_column = target_column
+  
 
         centered_col = st.columns([1, 3, 1])[1]
         with centered_col:
@@ -180,11 +225,17 @@ if st.session_state.active_tab == 1:
                 st.session_state.target_y_ext = y_ext
                 st.session_state.target_r2 = r2_score
                 st.session_state.target_of_ratio = of_ratio
+                st.session_state.target_model_trained = True
 
                 st.success(f"Target model trained successfully! R² score: {r2_score:.2f}, Overfit ratio: {of_ratio:.0f}")
+                st.session_state.target_model_type = model_type
+                st.session_state.target_column = target_column
 
+        # Only show Next button if model is trained
+        next_enabled = st.session_state.get("target_model_trained", False)
     else:
         st.info("Please load a dataset in Step 1 first.")
+        next_enabled = False
 
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -192,7 +243,7 @@ if st.session_state.active_tab == 1:
             st.session_state.active_tab -= 1
             st.rerun()
     with col2:
-        if st.button("Next ➡", use_container_width=True):
+        if st.button("Next ➡", use_container_width=True, disabled=not next_enabled):
             st.session_state.active_tab += 1
             st.rerun()
 
@@ -237,6 +288,10 @@ if st.session_state.active_tab == 2:
     params_df.index = [f"Shadow Model {i+1}" for i in range(len(params_df))]
     st.dataframe(params_df)
 
+    # Track if shadow models are trained
+    if "shadow_models_trained" not in st.session_state:
+        st.session_state.shadow_models_trained = False
+
     centered_col = st.columns([1, 3, 1])[1]
     with centered_col:
         if st.button("Train Shadow Models", use_container_width=True):
@@ -265,10 +320,11 @@ if st.session_state.active_tab == 2:
             st.session_state.shadow_models = models
             st.session_state.shadow_splits = splits
             st.session_state.shadow_stats = stats
+            st.session_state.shadow_models_trained = True
 
             st.markdown("### Shadow Model Performance")
             perf_df = pd.DataFrame(stats, columns=["Overfit Ratio", "R² Score"], index=[f"Shadow Model {i+1}" for i in range(len(stats))])
-                    # Add target model row at the top
+            # Add target model row at the top
             target_row = pd.DataFrame({
                 "Overfit Ratio": [st.session_state.target_of_ratio],
                 "R² Score": [st.session_state.target_r2]
