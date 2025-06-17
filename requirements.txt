@@ -10,4 +10,8 @@ art
 gradient-free-optimizers
 streamlit
 streamlit-option-menu
+joblib>=1.3
+psutil>=5.9.0
+
+
 
