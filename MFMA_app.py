@@ -23,7 +23,7 @@ st.markdown(
     </div>
     <div style="text-align: center; font-size: 1rem; color: #666;">
         Multi-Feature Membership Analysis for regression models<br>
-        <span style="font-size: 0.9rem;">@ Tsachi Cahana, 2025</span>
+        <span style="font-size: 0.9rem;">@ Tsachi Cahana, 19.06.2025</span>
     </div>
     <hr style="margin-top: 20px; margin-bottom: 10px;">
     """,
