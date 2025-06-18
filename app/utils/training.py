@@ -112,7 +112,7 @@ def train_XGB_model(df, feature_name, ext_size=0.2, test_size=0.5, rand_stat=42,
         X_train, X_test, y_train, y_test = X, [], y, []
 
     # Train Regression model
-    model = xgb.XGBRegressor(objective ='reg:squarederror', colsample_bytree = 0.3, learning_rate = 0.1, max_depth = max_d, alpha = 10, n_estimators = n_est)
+    model = xgb.XGBRegressor(objective ='reg:squarederror', colsample_bytree = 0.3, learning_rate = 0.1, max_depth = max_d, alpha = 10, n_estimators = n_est, n_jobs=-1, random_state=rand_stat)
     model.fit(X_train, y_train)
 
     # Make predictions and calculate accuracy

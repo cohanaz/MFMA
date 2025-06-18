@@ -8,6 +8,8 @@ from streamlit_option_menu import option_menu
 
 from app.utils.feature_extraction import *
 
+USE_JOBLIB = True  # שנה ל-False אם אתה רוצה לחזור ל-ProcessPoolExecutor
+
 def run():
     st.subheader("Step 4: Compute Attack Features")
 
@@ -154,34 +156,41 @@ def run():
                 st.markdown(f"**Processing augmentations @ noise={noise}**")
 
                 # Target model: train
-                results_train = parallel_process_rows(
-                    st.session_state.target_X_train,
+                results_train = parallel_process_rows_flexible(
+                    X=st.session_state.target_X_train,
                     feature_scale=noise,
                     model_id=0,
+                    model=st.session_state.target_model,
                     augmented_records=augmentation_count,
-                    desc=f"Target model train set",
-                    max_workers=st.session_state.max_workers
+                    desc="Target model train set",
+                    max_workers=st.session_state.max_workers,
+                    use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
                 )
                 st.session_state[f"aug_train_t_{noise_str}"] = pd.DataFrame(results_train, columns=columns)
 
                 # Target model: test
-                results_test = parallel_process_rows(
-                    st.session_state.target_X_test,
+                results_test = parallel_process_rows_flexible(
+                    X=st.session_state.target_X_test,
                     feature_scale=noise,
                     model_id=0,
+                    model=st.session_state.target_model,
                     augmented_records=augmentation_count,
-                    desc=f"Target model test set",
-                    max_workers=st.session_state.max_workers
+                    desc="Target model test set",
+                    max_workers=st.session_state.max_workers,
+                    use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
                 )
                 st.session_state[f"aug_test_t_{noise_str}"] = pd.DataFrame(results_test, columns=columns)
 
                 # Shadow models
                 st.session_state[f"augmented_results_{noise_str}"] = build_augmented_feature_dfs(
+                    shadow_models=st.session_state.shadow_models,
+                    shadow_splits=st.session_state.shadow_splits,
                     feature_scale=noise,
                     columns=columns,
                     noise_label=noise_str,
                     augmented_records=augmentation_count,
-                    max_workers=st.session_state.max_workers
+                    max_workers=st.session_state.max_workers,
+                    use_joblib=USE_JOBLIB
                 )
 
             st.session_state.aug_count = augmentation_count
