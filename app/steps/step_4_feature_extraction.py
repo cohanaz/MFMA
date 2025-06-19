@@ -4,9 +4,10 @@ import multiprocessing
 import streamlit as st
 import numpy as np
 import pandas as pd
-from streamlit_option_menu import option_menu
 
-from app.utils.feature_extraction import *
+from app.utils.augmentations import *
+from app.utils.missing import *
+from app.utils.ens_var import *
 
 USE_JOBLIB = True  # שנה ל-False אם אתה רוצה לחזור ל-ProcessPoolExecutor
 
@@ -97,39 +98,21 @@ def run():
 
     elif current_label == "Augmentations":
 
-        label_col, select_col = st.columns([2, 4])
-        with label_col:
-            st.markdown("Select noise levels:")
-        with select_col:
+        col = st.columns([1, 2, 1])[1]
+        with col:
+            
             noise_levels = st.multiselect(
-                label="", 
+                label="Select noise levels:", 
                 options=[1.0, 0.1, 0.01], 
                 default=[1.0, 0.1]
             )
             st.session_state.noise_levels = noise_levels
 
-        label_col, select_col = st.columns([2, 4])
-        with label_col:
-            st.markdown("Select number of augmentations per sample:")
-        with select_col:
-            augmentation_count = option_menu(
-                menu_title=None,
-                options=[4, 8, 12, 16, 20, 24],
-                orientation="horizontal",
-                default_index=1,
-                styles={
-                    "container": {"padding": "0!important", "background-color": "#f9f9f9"},
-                    "icon": {"color": "white", "font-size": "0px"},
-                    "nav-link": {
-                        "font-size": "16px",
-                        "margin": "0px",
-                        "padding": "10px 16px",
-                        "border-radius": "6px",
-                        "color": "black",
-                        "text-align": "center",
-                    },
-                    "nav-link-selected": {"background-color": "#4CAF50", "color": "white"},
-                }
+            augmentation_count = st.radio(
+                "Select number of augmentations per sample:",
+                [4, 8, 12, 16, 20, 24],
+                index=1,
+                horizontal=True,
             )
 
         columns = ['index', 'aug_preds_var', 'aug_preds_range', 'aug_preds_diff'] + [f'aug_pred_{i}' for i in range(augmentation_count)]
@@ -164,6 +147,7 @@ def run():
                     augmented_records=augmentation_count,
                     desc="Target model train set",
                     max_workers=st.session_state.max_workers,
+                    batch_size=16,
                     use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
                 )
                 st.session_state[f"aug_train_t_{noise_str}"] = pd.DataFrame(results_train, columns=columns)
@@ -177,6 +161,7 @@ def run():
                     augmented_records=augmentation_count,
                     desc="Target model test set",
                     max_workers=st.session_state.max_workers,
+                    batch_size=16,
                     use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
                 )
                 st.session_state[f"aug_test_t_{noise_str}"] = pd.DataFrame(results_test, columns=columns)
@@ -190,6 +175,7 @@ def run():
                     noise_label=noise_str,
                     augmented_records=augmentation_count,
                     max_workers=st.session_state.max_workers,
+                    batch_size=16,
                     use_joblib=USE_JOBLIB
                 )
 
@@ -201,7 +187,7 @@ def run():
     elif current_label == "Missing":        
         centered_col = st.columns([1, 3, 1])[1]
         with centered_col:
-            strategy = st.radio("**Choose strategy:**", ["mean", "median", "zero"], horizontal=True)
+            strategy = st.radio("Choose strategy:", ["mean", "median", "zero"], horizontal=True)
             n_important = st.slider("Choose number of missing features:", min_value=1, max_value=5, value=3)
             
             clicked = st.button("Compute Missing Value Features", use_container_width=True)
@@ -270,12 +256,12 @@ def run():
 
         if clicked:
             if st.session_state.target_model_type == "XGBoost":
-                est_func = compute_estimators_metrics
+                est_func = parallel_estimators_metrics
             else:
                 est_func = calculate_tree_stats
 
-            st.session_state.ens_var_train_metric_1, st.session_state.ens_var_train_metric_2 = est_func(st.session_state.target_model, st.session_state.target_X_train, desc="target model train set")
-            st.session_state.ens_var_test_metric_1, st.session_state.ens_var_test_metric_2 = est_func(st.session_state.target_model, st.session_state.target_X_test, desc="target model test set")
+            st.session_state.ens_var_train_metric_1, st.session_state.ens_var_train_metric_2 = est_func(model=st.session_state.target_model, X=st.session_state.target_X_train, desc="target model train set", max_workers=st.session_state.max_workers)
+            st.session_state.ens_var_test_metric_1, st.session_state.ens_var_test_metric_2 = est_func(model=st.session_state.target_model, X=st.session_state.target_X_test, desc="target model test set", max_workers=st.session_state.max_workers)
 
             st.session_state.ens_var_train_metrics = []
             st.session_state.ens_var_test_metrics = []
@@ -285,11 +271,11 @@ def run():
                 X_train, X_test = split[0], split[1]
 
                 # Train metrics
-                train_metrics = est_func(model, X_train, desc=f"shadow model {model_idx+1} train set")
+                train_metrics = est_func(model=model, X=X_train, desc=f"shadow model {model_idx+1} train set", max_workers=st.session_state.max_workers)
                 st.session_state.ens_var_train_metrics.append(train_metrics)
 
                 # Test metrics
-                test_metrics = est_func(model, X_test, desc=f"shadow model {model_idx+1} test set")
+                test_metrics = est_func(model=model, X=X_test, desc=f"shadow model {model_idx+1} test set", max_workers=st.session_state.max_workers)
                 st.session_state.ens_var_test_metrics.append(test_metrics)
                 
             st.session_state.feature_completed[3] = True
