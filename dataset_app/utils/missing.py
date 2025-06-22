@@ -90,10 +90,10 @@ def calculate_missing_stats(X_train, model, feature_importance, features_means, 
 
 def process_missing_row(args):
     index, row, model_id, strategy, n_important = args
-    model = get_global_shadow_model(model_id - 1) if model_id > 0 else get_global_target_model()
-    importance = get_global_feature_importance(model_id - 1 if model_id > 0 else 0)
-    means = get_global_feature_means(model_id - 1 if model_id > 0 else 0)
-    medians = get_global_feature_medians(model_id - 1 if model_id > 0 else 0)
+    model = get_global_shadow_model(model_id)
+    importance = get_global_feature_importance(model_id)
+    means = get_global_feature_means(model_id)
+    medians = get_global_feature_medians(model_id)
     missing_set = create_missing_set(row, importance, means, medians, strategy=strategy, n_important=n_important)
     df = pd.DataFrame(missing_set, columns=row.index)
     preds = model.predict(df)
@@ -128,8 +128,6 @@ def create_missing_set(original_row, feature_importance, features_means, feature
         elif strategy == 'mean':
             missing_row[indice] = features_means[indice]
         elif strategy == 'median':
-            if features_medians is None:
-                raise ValueError("features_medians must be provided for strategy='median'")
             missing_row[indice] = features_medians[indice]
 
         missing_set.append(missing_row)
@@ -163,4 +161,33 @@ def parallel_process_missing_rows(X, model_id, strategy, n_important, desc, max_
     duration = time.time() - start_time
     #st.toast(f"✔ Missing stats processed in {duration:.2f} seconds")
     print(f"[⏱] parallel_process_missing_rows took {duration:.2f} seconds")
+    return results
+
+def process_missing_row_joblib(index, row, model, importance, means, medians, strategy, n_important):
+    missing_set = create_missing_set(row, importance, means, medians, strategy=strategy, n_important=n_important)
+    df = pd.DataFrame(missing_set, columns=row.index)
+    preds = model.predict(df)
+    return np.std(preds), entropy(preds), np.var(preds)
+
+def parallel_process_missing_rows_joblib(X, model, importance, means, medians, strategy, n_important, desc, max_workers=4):
+    args_list = [(index, row, model, importance, means, medians, strategy, n_important) for index, row in X.iterrows()]
+    total = len(args_list)
+    results = [None] * total
+    start_time = time.time()
+
+    desc_col, progress_col = st.columns([2, 3])
+    with desc_col:
+        st.markdown(f"{desc} ({total} records):")
+    with progress_col:
+        progress = st.progress(0)
+
+    results = Parallel(n_jobs=max_workers)(
+        delayed(process_missing_row_joblib)(*args) for args in args_list
+    )
+
+    for i in range(total):
+        progress.progress(int((i + 1) / total * 100))
+
+    duration = time.time() - start_time
+    print(f"[\u23F1] parallel_process_missing_rows_joblib took {duration:.2f} seconds")
     return results

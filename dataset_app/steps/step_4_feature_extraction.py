@@ -54,8 +54,8 @@ def run():
                 progress = st.progress(0)
                 with st.spinner("Computing Error Features..."):
                     progress.progress(10)
-                    st.session_state.train_t_preds = st.session_state.target_model.predict(st.session_state.target_X_train)
-                    st.session_state.test_t_preds = st.session_state.target_model.predict(st.session_state.target_X_test)
+                    # st.session_state.train_t_preds = st.session_state.target_model.predict(st.session_state.target_X_train)
+                    # st.session_state.test_t_preds = st.session_state.target_model.predict(st.session_state.target_X_test)
 
                     st.session_state.train_s_preds_list = []
                     st.session_state.test_s_preds_list = []
@@ -66,8 +66,8 @@ def run():
                         st.session_state.train_s_preds_list.append(st.session_state.train_s_preds)
                         st.session_state.test_s_preds_list.append(st.session_state.test_s_preds)
 
-                    st.session_state.train_t_errors = abs(st.session_state.train_t_preds - st.session_state.target_y_train)
-                    st.session_state.test_t_errors = abs(st.session_state.test_t_preds - st.session_state.target_y_test)
+                    # st.session_state.train_t_errors = abs(st.session_state.train_t_preds - st.session_state.target_y_train)
+                    # st.session_state.test_t_errors = abs(st.session_state.test_t_preds - st.session_state.target_y_test)
 
                     st.session_state.train_s_errors_list = []
                     st.session_state.test_s_errors_list = []
@@ -78,9 +78,9 @@ def run():
                         st.session_state.train_s_errors_list.append(st.session_state.train_errors)
                         st.session_state.test_s_errors_list.append(st.session_state.test_errors)
 
-                    st.session_state.model_importances, st.session_state.feature_importance_t = extract_feature_importances(st.session_state.shadow_models, st.session_state.shadow_splits)
-                    st.session_state.features_t_means = st.session_state.target_X_train.mean()
-                    st.session_state.features_t_medians = st.session_state.target_X_train.median()
+                    st.session_state.model_importances, st.session_state.combined_importance = extract_feature_importances(st.session_state.shadow_models, st.session_state.shadow_splits)
+                    # st.session_state.features_t_means = st.session_state.target_X_train.mean()
+                    # st.session_state.features_t_medians = st.session_state.target_X_train.median()
                     st.session_state.features_s_means_list = []
                     st.session_state.features_s_medians_list = []
 
@@ -114,6 +114,7 @@ def run():
                 index=1,
                 horizontal=True,
             )
+        st.session_state.augmentation_count = augmentation_count
 
         columns = ['index', 'aug_preds_var', 'aug_preds_range', 'aug_preds_diff'] + [f'aug_pred_{i}' for i in range(augmentation_count)]
         
@@ -127,9 +128,9 @@ def run():
             st.toast(f"Using {num_cpus} CPU cores for parallel processing")
             st.session_state.max_workers = num_cpus
 
-            set_global_target_model(st.session_state.target_model)
-            set_global_shadow_models(st.session_state.shadow_models)
-            set_global_shadow_splits(st.session_state.shadow_splits)
+            # set_global_target_model(st.session_state.target_model)
+            # set_global_shadow_models(st.session_state.shadow_models)
+            # set_global_shadow_splits(st.session_state.shadow_splits)
 
             for noise in noise_levels:
                 noise_str = str(noise).replace('.', '')
@@ -138,33 +139,33 @@ def run():
 
                 st.markdown(f"**Processing augmentations @ noise={noise}**")
 
-                # Target model: train
-                results_train = parallel_process_rows_flexible(
-                    X=st.session_state.target_X_train,
-                    feature_scale=noise,
-                    model_id=0,
-                    model=st.session_state.target_model,
-                    augmented_records=augmentation_count,
-                    desc="Target model train set",
-                    max_workers=st.session_state.max_workers,
-                    batch_size=16,
-                    use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
-                )
-                st.session_state[f"aug_train_t_{noise_str}"] = pd.DataFrame(results_train, columns=columns)
+                # # Target model: train
+                # results_train = parallel_process_rows_flexible(
+                #     X=st.session_state.target_X_train,
+                #     feature_scale=noise,
+                #     model_id=0,
+                #     model=st.session_state.target_model,
+                #     augmented_records=augmentation_count,
+                #     desc="Target model train set",
+                #     max_workers=st.session_state.max_workers,
+                #     batch_size=16,
+                #     use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
+                # )
+                # st.session_state[f"aug_train_t_{noise_str}"] = pd.DataFrame(results_train, columns=columns)
 
-                # Target model: test
-                results_test = parallel_process_rows_flexible(
-                    X=st.session_state.target_X_test,
-                    feature_scale=noise,
-                    model_id=0,
-                    model=st.session_state.target_model,
-                    augmented_records=augmentation_count,
-                    desc="Target model test set",
-                    max_workers=st.session_state.max_workers,
-                    batch_size=16,
-                    use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
-                )
-                st.session_state[f"aug_test_t_{noise_str}"] = pd.DataFrame(results_test, columns=columns)
+                # # Target model: test
+                # results_test = parallel_process_rows_flexible(
+                #     X=st.session_state.target_X_test,
+                #     feature_scale=noise,
+                #     model_id=0,
+                #     model=st.session_state.target_model,
+                #     augmented_records=augmentation_count,
+                #     desc="Target model test set",
+                #     max_workers=st.session_state.max_workers,
+                #     batch_size=16,
+                #     use_joblib=USE_JOBLIB  # משתנה שהגדרת למעלה
+                # )
+                # st.session_state[f"aug_test_t_{noise_str}"] = pd.DataFrame(results_test, columns=columns)
 
                 # Shadow models
                 st.session_state[f"augmented_results_{noise_str}"] = build_augmented_feature_dfs(
@@ -189,61 +190,52 @@ def run():
         with centered_col:
             strategy = st.radio("Choose strategy:", ["mean", "median", "zero"], horizontal=True)
             n_important = st.slider("Choose number of missing features:", min_value=1, max_value=5, value=3)
-            
+            st.session_state.missing_strategy = strategy
+            st.session_state.n_missing = n_important
             clicked = st.button("Compute Missing Value Features", use_container_width=True)
                 
         if clicked:
 
-            set_global_feature_importances([st.session_state.feature_importance_t] + st.session_state.model_importances)
-            set_global_feature_means_list([st.session_state.features_t_means] + st.session_state.features_s_means_list)
-            set_global_feature_medians_list([st.session_state.features_t_medians] + st.session_state.features_s_medians_list)
-            
-            st.session_state.missing_train_t_stds, st.session_state.missing_train_t_entropies, st.session_state.missing_train_t_vars = zip(*parallel_process_missing_rows(
-                X=st.session_state.target_X_train,
-                model_id=0,
-                strategy=strategy,
-                n_important=n_important,
-                desc="target model train set",
-                max_workers=st.session_state.max_workers
-            ))
-
-            st.session_state.missing_test_t_stds, st.session_state.missing_test_t_entropies, st.session_state.missing_test_t_vars = zip(*parallel_process_missing_rows(
-                X=st.session_state.target_X_test,
-                model_id=0,
-                strategy=strategy,
-                n_important=n_important,
-                desc="target model test set",
-                max_workers=st.session_state.max_workers
-            ))
+            #set_global_feature_importances(st.session_state.model_importances)
+            #set_global_feature_means_list(st.session_state.features_s_means_list)
+            #set_global_feature_medians_list(st.session_state.features_s_medians_list)
 
             st.session_state.missing_train_stats = []
             st.session_state.missing_test_stats = []
 
             for model_idx, split in enumerate(st.session_state.shadow_splits):
                 X_train, X_test = split[0], split[1]
+                model = st.session_state.shadow_models[model_idx]
+                importance = st.session_state.model_importances[model_idx]
+                means = st.session_state.features_s_means_list[model_idx]
+                medians = st.session_state.features_s_medians_list[model_idx]
 
-                train_stats = parallel_process_missing_rows(
+                train_stats = parallel_process_missing_rows_joblib(
                     X=X_train,
-                    model_id=model_idx + 1,
-                    strategy=strategy,
-                    n_important=n_important,
+                    model=model,
+                    importance=importance,
+                    means=means,
+                    medians=medians,
+                    strategy=st.session_state.missing_strategy,
+                    n_important=st.session_state.n_missing,
                     desc=f"shadow model {model_idx+1} train set",
                     max_workers=st.session_state.max_workers
                 )
                 st.session_state.missing_train_stats.append(list(zip(*train_stats)))
 
-                test_stats = parallel_process_missing_rows(
+                test_stats = parallel_process_missing_rows_joblib(
                     X=X_test,
-                    model_id=model_idx + 1,
-                    strategy=strategy,
-                    n_important=n_important,
+                    model=model,
+                    importance=importance,
+                    means=means,
+                    medians=medians,
+                    strategy=st.session_state.missing_strategy,
+                    n_important=st.session_state.n_missing,
                     desc=f"shadow model {model_idx+1} test set",
                     max_workers=st.session_state.max_workers
                 )
                 st.session_state.missing_test_stats.append(list(zip(*test_stats)))
 
-            st.session_state.missing_strategy = strategy
-            st.session_state.n_missing = n_important
             st.session_state.feature_completed[2] = True
             st.session_state.feature_stage += 1
             print("Missing features computed successfully!")
@@ -260,8 +252,8 @@ def run():
             else:
                 est_func = calculate_tree_stats
 
-            st.session_state.ens_var_train_metric_1, st.session_state.ens_var_train_metric_2 = est_func(model=st.session_state.target_model, X=st.session_state.target_X_train, desc="target model train set", max_workers=st.session_state.max_workers)
-            st.session_state.ens_var_test_metric_1, st.session_state.ens_var_test_metric_2 = est_func(model=st.session_state.target_model, X=st.session_state.target_X_test, desc="target model test set", max_workers=st.session_state.max_workers)
+            # st.session_state.ens_var_train_metric_1, st.session_state.ens_var_train_metric_2 = est_func(model=st.session_state.target_model, X=st.session_state.target_X_train, desc="target model train set", max_workers=st.session_state.max_workers)
+            # st.session_state.ens_var_test_metric_1, st.session_state.ens_var_test_metric_2 = est_func(model=st.session_state.target_model, X=st.session_state.target_X_test, desc="target model test set", max_workers=st.session_state.max_workers)
 
             st.session_state.ens_var_train_metrics = []
             st.session_state.ens_var_test_metrics = []
@@ -319,54 +311,55 @@ def run():
                                 data_attack_dict[col] = []
                             data_attack_dict[col] += list(df[col])
 
-            # Create test dict
-            data_test_dict = {
-                'prediction': list(st.session_state.train_t_preds) + list(st.session_state.test_t_preds),
-                'error': list(st.session_state.train_t_errors) + list(st.session_state.test_t_errors),
+            # # Create test dict
+            # data_test_dict = {
+            #     'prediction': list(st.session_state.train_t_preds) + list(st.session_state.test_t_preds),
+            #     'error': list(st.session_state.train_t_errors) + list(st.session_state.test_t_errors),
 
-                # Membership labels
-                'membership': list(np.ones(len(st.session_state.target_y_train))) + list(np.zeros(len(st.session_state.target_y_test))),
+            #     # Membership labels
+            #     'membership': list(np.ones(len(st.session_state.target_y_train))) + list(np.zeros(len(st.session_state.target_y_test))),
 
-                # Missing features
-                'missing_preds_entropies': list(st.session_state.missing_train_t_entropies) + list(st.session_state.missing_test_t_entropies),
-                'missing_preds_vars': list(st.session_state.missing_train_t_vars) + list(st.session_state.missing_test_t_vars),
-            }
+            #     # Missing features
+            #     'missing_preds_entropies': list(st.session_state.missing_train_t_entropies) + list(st.session_state.missing_test_t_entropies),
+            #     'missing_preds_vars': list(st.session_state.missing_train_t_vars) + list(st.session_state.missing_test_t_vars),
+            # }
             
-            data_test_dict['ens_var_metric_1'] = list(st.session_state.ens_var_train_metric_1) + list(st.session_state.ens_var_test_metric_1)
-            data_test_dict['ens_var_metric_2'] = list(st.session_state.ens_var_train_metric_2) + list(st.session_state.ens_var_test_metric_2)
+            # data_test_dict['ens_var_metric_1'] = list(st.session_state.ens_var_train_metric_1) + list(st.session_state.ens_var_test_metric_1)
+            # data_test_dict['ens_var_metric_2'] = list(st.session_state.ens_var_train_metric_2) + list(st.session_state.ens_var_test_metric_2)
 
-            # Augmented scalar features
-            if 1.0 in st.session_state.noise_levels:
-                data_test_dict['aug_preds_var_1'] = list(st.session_state.aug_train_t_1['aug_preds_var']) + list(st.session_state.aug_test_t_1['aug_preds_var'])
-                data_test_dict['aug_preds_range_1'] = list(st.session_state.aug_train_t_1['aug_preds_range']) + list(st.session_state.aug_test_t_1['aug_preds_range'])
-                data_test_dict['aug_preds_diff_1'] = list(st.session_state.aug_train_t_1['aug_preds_diff']) + list(st.session_state.aug_test_t_1['aug_preds_diff'])
-            if 0.1 in st.session_state.noise_levels:
-                data_test_dict['aug_preds_var_01'] = list(st.session_state.aug_train_t_01['aug_preds_var']) + list(st.session_state.aug_test_t_01['aug_preds_var'])
-                data_test_dict['aug_preds_range_01'] = list(st.session_state.aug_train_t_01['aug_preds_range']) + list(st.session_state.aug_test_t_01['aug_preds_range'])
-                data_test_dict['aug_preds_diff_01'] = list(st.session_state.aug_train_t_01['aug_preds_diff']) + list(st.session_state.aug_test_t_01['aug_preds_diff'])
-            if 0.01 in st.session_state.noise_levels:
-                data_test_dict['aug_preds_var_001'] = list(st.session_state.aug_train_t_001['aug_preds_var']) + list(st.session_state.aug_test_t_001['aug_preds_var'])
-                data_test_dict['aug_preds_range_001'] = list(st.session_state.aug_train_t_001['aug_preds_range']) + list(st.session_state.aug_test_t_001['aug_preds_range'])
-                data_test_dict['aug_preds_diff_001'] = list(st.session_state.aug_train_t_001['aug_preds_diff']) + list(st.session_state.aug_test_t_001['aug_preds_diff'])
+            # # Augmented scalar features
+            # if 1.0 in st.session_state.noise_levels:
+            #     data_test_dict['aug_preds_var_1'] = list(st.session_state.aug_train_t_1['aug_preds_var']) + list(st.session_state.aug_test_t_1['aug_preds_var'])
+            #     data_test_dict['aug_preds_range_1'] = list(st.session_state.aug_train_t_1['aug_preds_range']) + list(st.session_state.aug_test_t_1['aug_preds_range'])
+            #     data_test_dict['aug_preds_diff_1'] = list(st.session_state.aug_train_t_1['aug_preds_diff']) + list(st.session_state.aug_test_t_1['aug_preds_diff'])
+            # if 0.1 in st.session_state.noise_levels:
+            #     data_test_dict['aug_preds_var_01'] = list(st.session_state.aug_train_t_01['aug_preds_var']) + list(st.session_state.aug_test_t_01['aug_preds_var'])
+            #     data_test_dict['aug_preds_range_01'] = list(st.session_state.aug_train_t_01['aug_preds_range']) + list(st.session_state.aug_test_t_01['aug_preds_range'])
+            #     data_test_dict['aug_preds_diff_01'] = list(st.session_state.aug_train_t_01['aug_preds_diff']) + list(st.session_state.aug_test_t_01['aug_preds_diff'])
+            # if 0.01 in st.session_state.noise_levels:
+            #     data_test_dict['aug_preds_var_001'] = list(st.session_state.aug_train_t_001['aug_preds_var']) + list(st.session_state.aug_test_t_001['aug_preds_var'])
+            #     data_test_dict['aug_preds_range_001'] = list(st.session_state.aug_train_t_001['aug_preds_range']) + list(st.session_state.aug_test_t_001['aug_preds_range'])
+            #     data_test_dict['aug_preds_diff_001'] = list(st.session_state.aug_train_t_001['aug_preds_diff']) + list(st.session_state.aug_test_t_001['aug_preds_diff'])
 
-            # Map each (train_df, test_df) to its corresponding noise label
-            aug_dfs = []
-            for suffix in ['1', '01', '001']:
-                train_key = f'aug_train_t_{suffix}'
-                test_key = f'aug_test_t_{suffix}'    
-                if train_key in st.session_state and test_key in st.session_state:
-                    aug_dfs.append((st.session_state[train_key], st.session_state[test_key], suffix))
+            # # Map each (train_df, test_df) to its corresponding noise label
+            # aug_dfs = []
+            # for suffix in ['1', '01', '001']:
+            #     train_key = f'aug_train_t_{suffix}'
+            #     test_key = f'aug_test_t_{suffix}'    
+            #     if train_key in st.session_state and test_key in st.session_state:
+            #         aug_dfs.append((st.session_state[train_key], st.session_state[test_key], suffix))
 
-            # Add all prediction features with renamed columns
-            for aug_train_df, aug_test_df, noise_label in aug_dfs:
-                for col in aug_train_df.columns:
-                    if col.startswith('aug_pred_'):
-                        # Extract the number from 'aug_pred_0' → '0'
-                        col_suffix = col.replace('aug_pred_', '')
-                        new_col = f'aug_pred_{noise_label}_{col_suffix}'
-                        data_test_dict[new_col] = list(aug_train_df[col]) + list(aug_test_df[col])
+            # # Add all prediction features with renamed columns
+            # for aug_train_df, aug_test_df, noise_label in aug_dfs:
+            #     for col in aug_train_df.columns:
+            #         if col.startswith('aug_pred_'):
+            #             # Extract the number from 'aug_pred_0' → '0'
+            #             col_suffix = col.replace('aug_pred_', '')
+            #             new_col = f'aug_pred_{noise_label}_{col_suffix}'
+            #             data_test_dict[new_col] = list(aug_train_df[col]) + list(aug_test_df[col])
 
-            st.session_state.data_attack_dict, st.session_state.data_test_dict = align_dicts_by_keys(data_attack_dict, data_test_dict)
+            # st.session_state.data_attack_dict, st.session_state.data_test_dict = align_dicts_by_keys(data_attack_dict, data_test_dict)
+            st.session_state.data_attack_dict = data_attack_dict
             st.success("All features combined successfully!")
 
     st.markdown("---")

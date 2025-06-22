@@ -52,7 +52,7 @@ def run():
         with col1:
             n_target_models = st.slider("Total models to generate:", min_value=10, max_value=100, value=10, step=10)
         with col2:
-            owned_model_ratio = st.slider("Ratio of owned models:", 0.1, 1.0, 0.5, 0.1)
+            owned_model_ratio = st.slider("Owned models ratio:", 0.1, 1.0, 0.5, 0.1)
         with col3:
             owned_ratio = st.slider("Owned data ratio:", 0.1, 0.9, 0.5, 0.1)
 
@@ -71,7 +71,6 @@ def run():
         st.markdown("### Target Models Hyperparameters")
         params_df = pd.DataFrame(target_params)
         params_df.index = [f"Target Model {i+1}" for i in range(len(params_df))]
-        st.dataframe(params_df, height=150)
 
         if model_type == "XGBoost":
             train_func = train_XGB_model
@@ -80,6 +79,7 @@ def run():
 
         centered_col = st.columns([1, 3, 1])[1]
         with centered_col:
+            st.dataframe(params_df, height=160)
             if st.button("Generate Target Models", use_container_width=True):
                 models, data_splits, model_stats, owned, external = generate_target_models(
                     train_function=train_func,
@@ -93,13 +93,15 @@ def run():
                 )
 
                 # שמירה ב-session_state
-                st.session_state.dataset_models = models
-                st.session_state.dataset_splits = data_splits
-                st.session_state.dataset_stats = model_stats
+                st.session_state.target_models = models
+                st.session_state.target_splits = data_splits
+                st.session_state.target_stats = model_stats
                 st.session_state.dataset_owned = owned
                 st.session_state.dataset_external = external
                 st.session_state.target_model_type = model_type
                 st.session_state.target_column = target_column
+                st.session_state.owned_model_ratio = owned_model_ratio
+                st.session_state.owned_ratio = owned_ratio
                 st.session_state.target_models_trained = True
 
                 st.success(f"{len(models)} models generated successfully.")
@@ -111,7 +113,7 @@ def run():
         st.info("Please load a dataset in Step 1 first.")
         next_enabled = False
         
-
+    st.markdown("---")
     # Navigation buttons after Step 2
     col1, col2 = st.columns([1, 1])
     with col1:

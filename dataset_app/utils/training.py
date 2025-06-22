@@ -250,7 +250,7 @@ def generate_target_models(train_function, dataset, target_col,
             n_est=params.get('n_est', 100),
             rand_stat=params.get('rand_stat', random_state + i),
             max_d=params.get('max_d', 6),
-            test_size=0.6,
+            test_size=0.5,
             ext_size=ext_size
         )
 
@@ -258,10 +258,4 @@ def generate_target_models(train_function, dataset, target_col,
         data_splits.append((X_train, X_test, X_ext, y_train, y_test, y_ext))
         model_stats.append((of_ratio, r2_score))
 
-    # Separate owned and external for later use
-    owned_X = owned_df.drop(columns=[target_col])
-    owned_y = owned_df[target_col]
-    external_X = external_df.drop(columns=[target_col])
-    external_y = external_df[target_col]
-
-    return models, data_splits, model_stats, (owned_X, owned_y), (external_X, external_y)
+    return models, data_splits, model_stats, owned_df, external_df
