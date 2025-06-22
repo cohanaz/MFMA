@@ -17,6 +17,17 @@ USE_JOBLIB = True  # שנה ל-False אם אתה רוצה לחזור ל-ProcessP
 
 def run():
     st.subheader("Step 6: Run Dataset-level Inference Attack")
+    
+    col1 = st.columns([1, 2, 1])[1]
+    with col1:
+        inference_threshold = st.slider(
+            "Inference Attack Threshold",
+            min_value=0.1,
+            max_value=1.0,
+            value=0.5,
+            step=0.05,
+            help="Threshold for the inference attack model to classify a sample as a member or non-member."
+        )
 
     st.markdown("### 📊 Attack Summary Table")
 
@@ -222,7 +233,7 @@ def run():
         y_attack = data_test['membership']
 
         probas = clf.predict_proba(X_attack)[:, 1]
-        threshold = 0.7
+        threshold = inference_threshold
         preds = (probas >= threshold).astype(int)
         detected = preds.sum()
         total = len(X_attack)
@@ -258,23 +269,24 @@ def run():
         st.session_state.target_model_idx += 1
         st.session_state.run_next_model = False
 
-        members_proba = probas[y_attack == 1]
-        non_members_proba = probas[y_attack == 0]
-        fig, ax = plt.subplots()
-        ax.hist(non_members_proba, bins=20, alpha=0.6, label='Non-Members', color='gray', edgecolor='black')
-        ax.hist(members_proba, bins=20, alpha=0.6, label='Members', color='blue', edgecolor='black')
-        ax.set_title(f"Prediction Probabilities by Class - Target Model {i}")
-        ax.set_xlabel("Predicted Probability")
-        ax.set_ylabel("Count")
-        ax.legend()
-        st.pyplot(fig)
-    
-        confirm_col = st.columns([2, 1, 2])[1]
-        with confirm_col:
-            if st.button("✅ Confirm", use_container_width=True):
-                st.rerun()
+        if not run_all:
+            members_proba = probas[y_attack == 1]
+            non_members_proba = probas[y_attack == 0]
+            fig, ax = plt.subplots()
+            ax.hist(non_members_proba, bins=20, alpha=0.6, label='Non-Members', color='gray', edgecolor='black')
+            ax.hist(members_proba, bins=20, alpha=0.6, label='Members', color='blue', edgecolor='black')
+            ax.set_title(f"Prediction Probabilities by Class - Target Model {i}")
+            ax.set_xlabel("Predicted Probability")
+            ax.set_ylabel("Count")
+            ax.legend()
+            st.pyplot(fig)
 
-        if run_all:
+            confirm_col = st.columns([2, 1, 2])[1]
+            with confirm_col:
+                if st.button("✅ Confirm", use_container_width=True):
+                    st.rerun()
+
+        else:
             time.sleep(0.25)
             st.rerun()
 

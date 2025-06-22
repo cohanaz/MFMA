@@ -184,11 +184,13 @@ def train_shadow_models(train_function, data, target, param_dicts, ext_size=0.2)
     model_stats = []
 
     for params in stqdm(param_dicts, desc="Training shadow models"):
+        
         model, X_train, X_test, X_ext, y_train, y_test, y_ext, of_ratio, r2_score = train_function(
             data, target,
-            n_est=params.get('n_est', 50),
-            rand_stat=params.get('rand_stat', 0),
-            max_d=params.get('max_d', 4),
+            n_est=params.get('Estimators', 50),
+            rand_stat = params.get('Seed', 0),
+            max_d=params.get('Max Depth', 4),
+            test_size=params.get('Test Size', 0.5),
             ext_size=ext_size
         )
         models.append(model)

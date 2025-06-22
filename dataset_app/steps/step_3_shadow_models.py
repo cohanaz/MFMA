@@ -8,16 +8,26 @@ from dataset_app.utils.training import train_RF_model, train_XGB_model, train_sh
 def run():
     st.subheader("Step 3: Train Shadow Models")
 
-    st.session_state.num_shadow_models = st.slider("Number of shadow models:", min_value=1, max_value=10, value=3)
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.session_state.num_shadow_models = st.slider("Number of shadow models:", min_value=1, max_value=10, value=3)
+    with col2:
+        st.session_state.variable_test_size = st.checkbox("Variable Test Size", value=False, help="If checked, each shadow model will have a different test size.")
     
     seeds = [42 + i for i in range(st.session_state.num_shadow_models)]
+    
+    if st.session_state.variable_test_size:
+        test_sizes = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]
+    else:
+        test_sizes = [0.5] * st.session_state.num_shadow_models
 
     # Generate random hyperparameters for each shadow model
     np.random.seed(0)
     used_depths = set()
     used_estimators = set()
     shadow_params = []
-    for seed in seeds:
+
+    for i, seed in enumerate(seeds):
         while True:
             max_depth = np.random.randint(3, 10)
             if max_depth not in used_depths:
@@ -30,10 +40,13 @@ def run():
                 used_estimators.add(estimators)
                 break
 
+        test_size = test_sizes[i % len(test_sizes)]
+
         params = {
             "Seed": seed,
             "Max Depth": max_depth,
-            "Estimators": estimators
+            "Estimators": estimators,
+            "Test Size": test_size
         }
         shadow_params.append(params)
 
@@ -50,15 +63,7 @@ def run():
     with centered_col:
         st.dataframe(params_df)
         if st.button("Train Shadow Models", use_container_width=True):
-            param_dicts = [
-                {
-                    "rand_stat": row["Seed"],
-                    "max_d": row["Max Depth"],
-                    "n_est": row["Estimators"]
-                }
-                for _, row in params_df.iterrows()
-            ]
-
+            
             if st.session_state.target_model_type == "XGBoost":
                 train_func = train_XGB_model
             else:
@@ -68,7 +73,7 @@ def run():
                 train_function=train_func,
                 data=st.session_state.dataset_owned,
                 target=st.session_state.target_column,
-                param_dicts=param_dicts,
+                param_dicts=shadow_params,
                 ext_size=0.2
             )
 
