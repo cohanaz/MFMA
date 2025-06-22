@@ -41,7 +41,6 @@ def run():
     st.markdown("### Shadow Model Hyperparameters")
     params_df = pd.DataFrame(shadow_params)
     params_df.index = [f"Shadow Model {i+1}" for i in range(len(params_df))]
-    st.dataframe(params_df)
 
     # Track if shadow models are trained
     if "shadow_models_trained" not in st.session_state:
@@ -49,6 +48,7 @@ def run():
 
     centered_col = st.columns([1, 3, 1])[1]
     with centered_col:
+        st.dataframe(params_df)
         if st.button("Train Shadow Models", use_container_width=True):
             param_dicts = [
                 {
@@ -66,7 +66,7 @@ def run():
 
             models, splits, stats = train_shadow_models(
                 train_function=train_func,
-                data=st.session_state.dataset,
+                data=st.session_state.dataset_owned,
                 target=st.session_state.target_column,
                 param_dicts=param_dicts,
                 ext_size=0.2
@@ -90,6 +90,7 @@ def run():
 
             st.success("Shadow models trained and stored successfully!")
 
+    st.markdown("---")
     col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("⬅ Back", use_container_width=True):

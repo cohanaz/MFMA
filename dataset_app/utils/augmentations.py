@@ -81,7 +81,7 @@ def process_row_batch(args_batch):
     """
     # נניח שכולם שייכים לאותו מודל
     model_id = args_batch[0][3]
-    model = get_global_shadow_model(model_id - 1) if model_id > 0 else get_global_target_model()
+    model = get_global_shadow_model(model_id)
 
     batch_results = []
     for index, row, feature_scale, _, n_cases in args_batch:
@@ -307,7 +307,7 @@ def build_augmented_feature_dfs(shadow_models, shadow_splits, feature_scale, col
         train_results = parallel_process_rows_flexible(
             X=X_train,
             feature_scale=feature_scale,
-            model_id=model_idx + 1,
+            model_id=model_idx,
             model=model,
             augmented_records=augmented_records,
             desc=f"Shadow model {model_idx+1} train set",

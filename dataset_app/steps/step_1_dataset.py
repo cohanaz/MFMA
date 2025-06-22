@@ -75,6 +75,7 @@ def run():
         st.write("**Dataset Preview:**")
         st.dataframe(st.session_state.dataset.head())
 
+    st.markdown("---")
     col1, col2 = st.columns([1, 1])
     with col2:
         if st.button("Next ➡", use_container_width=True):
