@@ -1,5 +1,7 @@
 # step_3_shadow_models.py
 
+import itertools
+import random
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -21,25 +23,20 @@ def run():
     else:
         test_sizes = [0.5] * st.session_state.num_shadow_models
 
+    depth_range = range(3, 10)  # 3 עד 9 כולל
+    estimator_choices = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+
     # Generate random hyperparameters for each shadow model
     np.random.seed(0)
-    used_depths = set()
-    used_estimators = set()
     shadow_params = []
 
+    # כל הצירופים האפשריים
+    all_combinations = list(itertools.product(depth_range, estimator_choices))
+    random.shuffle(all_combinations)
+
     for i, seed in enumerate(seeds):
-        while True:
-            max_depth = np.random.randint(3, 10)
-            if max_depth not in used_depths:
-                used_depths.add(max_depth)
-                break
-
-        while True:
-            estimators = int(np.random.choice([50, 100, 150, 200, 250, 300, 350, 400, 450, 500]))
-            if estimators not in used_estimators:
-                used_estimators.add(estimators)
-                break
-
+                    
+        max_depth, estimators = all_combinations[i]
         test_size = test_sizes[i % len(test_sizes)]
 
         params = {

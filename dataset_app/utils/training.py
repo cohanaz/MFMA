@@ -74,16 +74,17 @@ def train_RF_model(df, feature_name, ext_size=0.2, test_size=0.5, n_est=100, ran
 
     # Print metrics and plot prediction errors
     if verbose == 1:
-        print(f"Train set: RMSE = {train_rmse:.4f}, Relative RMSE = {relative_train_rmse:.4f}")
-        print(f"Test set: RMSE = {test_rmse:.4f}, Relative RMSE = {relative_test_rmse:.4f}")
-        print(f"Test R2 score = {r2_score:.4f}")
-        print(f"Overfit_percentage = {overfit_percentage:.4f}")
-        plt.hist(train_errors, bins=bin_edges, alpha=0.5, label='Train')
-        plt.hist(test_errors, bins=bin_edges, alpha=0.5, label='Test')
-        plt.legend()
-        plt.xlabel('Prediction error')
-        plt.ylabel('Frequency')
-        plt.show()
+        print(f"R2 Score = {r2_score:.4f} | Overfit_percentage = {overfit_percentage:.4f}")
+        #print(f"Train set: RMSE = {train_rmse:.4f}, Relative RMSE = {relative_train_rmse:.4f}")
+        #print(f"Test set: RMSE = {test_rmse:.4f}, Relative RMSE = {relative_test_rmse:.4f}")
+        #print(f"Test R2 score = {r2_score:.4f}")
+        #print(f"Overfit_percentage = {overfit_percentage:.4f}")
+        #plt.hist(train_errors, bins=bin_edges, alpha=0.5, label='Train')
+        #plt.hist(test_errors, bins=bin_edges, alpha=0.5, label='Test')
+        #plt.legend()
+        #plt.xlabel('Prediction error')
+        #plt.ylabel('Frequency')
+        #plt.show()
 
     return model, X_train, X_test, X_ext ,y_train, y_test, y_ext, overfit_percentage, r2_score
 
@@ -148,16 +149,15 @@ def train_XGB_model(df, feature_name, ext_size=0.2, test_size=0.5, rand_stat=42,
 
     # Print metrics and plot prediction errors
     if verbose == 1:
-        print(f"Train set: RMSE = {train_rmse:.4f}, Relative RMSE = {relative_train_rmse:.4f}")
-        print(f"Test set: RMSE = {test_rmse:.4f}, Relative RMSE = {relative_test_rmse:.4f}")
-        print(f"R2 Score = {r2_score:.4f}")
-        print(f"Overfit_percentage = {overfit_percentage:.4f}")
-        plt.hist(train_errors, bins=bin_edges, alpha=0.5, label='Train')
-        plt.hist(test_errors, bins=bin_edges, alpha=0.5, label='Test')
-        plt.legend()
-        plt.xlabel('Prediction error')
-        plt.ylabel('Frequency')
-        plt.show()
+        #print(f"Train set: RMSE = {train_rmse:.4f}, Relative RMSE = {relative_train_rmse:.4f}")
+        #print(f"Test set: RMSE = {test_rmse:.4f}, Relative RMSE = {relative_test_rmse:.4f}")
+        print(f"R2 Score = {r2_score:.4f} | Overfit_percentage = {overfit_percentage:.4f}")
+        #plt.hist(train_errors, bins=bin_edges, alpha=0.5, label='Train')
+        #plt.hist(test_errors, bins=bin_edges, alpha=0.5, label='Test')
+        #plt.legend()
+        #plt.xlabel('Prediction error')
+        #plt.ylabel('Frequency')
+        #plt.show()
 
     return model, X_train, X_test, X_ext ,y_train, y_test, y_ext, overfit_percentage, r2_score
 
@@ -199,9 +199,8 @@ def train_shadow_models(train_function, data, target, param_dicts, ext_size=0.2)
 
     return models, data_splits, model_stats
 
-def generate_target_models(train_function, dataset, target_col,
-                           owned_ratio=0.3, owned_model_ratio=0.5, 
-                           param_dicts=None, ext_size=0.0, random_state=42):
+def generate_target_models(train_function, dataset, target_col, owned_data_ratio=0.5,
+                           holdout_ratio=0.0, param_dicts=None, random_state=42):
     """
     Generates multiple target models for dataset-level MIA.
 
@@ -209,10 +208,10 @@ def generate_target_models(train_function, dataset, target_col,
         train_function: Function that returns model, splits, and stats.
         dataset: Full dataset including the target column.
         target_col: Name of the target column.
-        owned_ratio: Ratio of data considered 'owned' by the user.
         owned_model_ratio: Ratio of models trained with the owned data.
+        owned_data_ratio: Ratio of owned data from all the data.
+        holdout_ratio: Ratio of holdout data from all the data.
         param_dicts: List of parameter dictionaries for each model.
-        ext_size: Portion of training data to be used as 'external test'.
         random_state: Seed for reproducibility.
 
     Returns:
@@ -222,42 +221,62 @@ def generate_target_models(train_function, dataset, target_col,
     # Shuffle the full dataset
     dataset = shuffle(dataset, random_state=random_state)
 
-    # Partition into owned and external
-    n_owned = int(len(dataset) * owned_ratio)
-    owned_df = dataset.iloc[:n_owned]
-    external_df = dataset.iloc[n_owned:]
-
     models = []
     data_splits = []
     model_stats = []
 
-    n_models = len(param_dicts)
-    n_owned_models = int(n_models * owned_model_ratio)
+    # שלב 1: פיצול holdout מה-dataset המקורי
+    holdout_df = dataset.sample(frac=holdout_ratio, random_state=42)
+    working_df = dataset.drop(holdout_df.index).reset_index(drop=True)
 
+    # שלב 2: המשך חישוב על working_df
+    n_owned = int(len(working_df) * owned_data_ratio)
+
+    owned_df = working_df.iloc[:n_owned]
+    external_df = working_df.iloc[n_owned:]
+
+    train_size = min(len(owned_df), len(external_df))
+   
     for i, params in stqdm(enumerate(param_dicts), total=len(param_dicts), desc="Training target models"):
-        use_owned = i < n_owned_models
+       
+        # שלב 3: בניית סט אימון לפי ratio
+        own_ex_ratio = params.get('Owned to External Ratio', 0.5)
 
-        if use_owned:
-            train_df = pd.concat([external_df, owned_df])
-        else:
-            train_df = external_df.copy()
+        # max_owned = len(owned_df)
+        # max_external = len(external_df)
 
-        # Shuffle per model
-        train_df = shuffle(train_df, random_state=random_state + i)
+        # max_total_size_owned_limited = max_owned / own_ex_ratio if own_ex_ratio > 0 else float('inf')
+        # max_total_size_external_limited = max_external / (1 - own_ex_ratio) if own_ex_ratio < 1 else float('inf')
+
+        # max_total_size = int(min(max_total_size_owned_limited, max_total_size_external_limited))
+
+        # n_owned = int(max_total_size * own_ex_ratio)
+        # n_external = max_total_size - n_owned
+
+        n_owned = int(train_size * own_ex_ratio)
+        n_external = train_size - n_owned
+
+        sampled_owned = owned_df.sample(n=n_owned, random_state=42)
+        sampled_external = external_df.sample(n=n_external, random_state=42)
+
+        train_df = pd.concat([sampled_owned, sampled_external])
+        train_df = train_df.sample(frac=1, random_state=42).reset_index(drop=True)
+
+        print(f"Training model {i+1}/{len(param_dicts)} with owned:external ratio = {own_ex_ratio:.2f} | n_total = {n_owned+n_external}, n_owned = {n_owned}, n_external = {n_external}")
 
         # Train the model
         model, X_train, X_test, X_ext, y_train, y_test, y_ext, of_ratio, r2_score = train_function(
             train_df,
             target_col,
-            n_est=params.get('n_est', 100),
-            rand_stat=params.get('rand_stat', random_state + i),
-            max_d=params.get('max_d', 6),
+            n_est=params.get('Estimators', 100),
+            rand_stat=params.get('Seed', random_state + i),
+            max_d=params.get('Max Depth', 6),
             test_size=0.5,
-            ext_size=ext_size
+            ext_size=0.0
         )
 
         models.append(model)
         data_splits.append((X_train, X_test, X_ext, y_train, y_test, y_ext))
-        model_stats.append((of_ratio, r2_score))
+        model_stats.append((of_ratio, r2_score, own_ex_ratio))
 
     return models, data_splits, model_stats, owned_df, external_df

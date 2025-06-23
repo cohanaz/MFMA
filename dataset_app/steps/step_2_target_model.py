@@ -50,11 +50,13 @@ def run():
         # ⚙️ פרמטרים לבחירה
         col1, _, col2, _, col3 = st.columns([2, 1, 2, 1, 2])
         with col1:
-            n_target_models = st.slider("Total models to generate:", min_value=10, max_value=100, value=10, step=10)
+            n_target_models = st.slider("# models to generate:", min_value=10, max_value=100, value=10, step=10)
         with col2:
-            owned_model_ratio = st.slider("Owned models ratio:", 0.1, 1.0, 0.5, 0.1)
+            owned_data_ratio = st.slider(f"% owned data:", 0.2, 0.8, 0.5, 0.1)
         with col3:
-            owned_ratio = st.slider("Owned data ratio:", 0.1, 0.9, 0.5, 0.1)
+            holdout_data_ratio = st.slider(f"% holdout data:", 0.0, 0.4, 0.0, 0.1)
+
+        owned_to_external_ratio = [1.0, 1.0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.0, 0.0]
 
         # Generate random hyperparameters for each shadow model
         np.random.seed(0)
@@ -63,21 +65,23 @@ def run():
             params = {
                 "Seed": 42 + i,
                 "Max Depth": np.random.randint(3, 8),
-                "Estimators": int(np.random.choice([50, 100, 150, 200, 250, 300, 350, 400]))
+                "Estimators": int(np.random.choice([50, 100, 150, 200, 250, 300, 350, 400])),
+                "Owned to External Ratio": owned_to_external_ratio[i % len(owned_to_external_ratio)]
             }
             target_params.append(params)
 
         st.markdown("---")
         st.markdown("### Target Models Hyperparameters")
         params_df = pd.DataFrame(target_params)
-        params_df.index = [f"Target Model {i+1}" for i in range(len(params_df))]
+        params_df.index = [f"{i+1}" for i in range(len(params_df))]
+        params_df.index.name = "#Model"
 
         if model_type == "XGBoost":
             train_func = train_XGB_model
         else:
             train_func = train_RF_model
 
-        centered_col = st.columns([1, 3, 1])[1]
+        centered_col = st.columns([1, 4, 1])[1]
         with centered_col:
             st.dataframe(params_df, height=160)
             if st.button("Generate Target Models", use_container_width=True):
@@ -85,10 +89,9 @@ def run():
                     train_function=train_func,
                     dataset=st.session_state.dataset,
                     target_col=target_column,
-                    owned_ratio=owned_ratio,
-                    owned_model_ratio=owned_model_ratio,
+                    owned_data_ratio=owned_data_ratio,
+                    holdout_ratio=holdout_data_ratio,
                     param_dicts=target_params,
-                    ext_size=0.0,
                     random_state=42
                 )
 
@@ -100,8 +103,6 @@ def run():
                 st.session_state.dataset_external = external
                 st.session_state.target_model_type = model_type
                 st.session_state.target_column = target_column
-                st.session_state.owned_model_ratio = owned_model_ratio
-                st.session_state.owned_ratio = owned_ratio
                 st.session_state.target_models_trained = True
 
                 st.success(f"{len(models)} models generated successfully.")

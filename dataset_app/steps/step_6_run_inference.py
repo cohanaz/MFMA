@@ -33,7 +33,7 @@ def run():
 
     if "dataset_attack_results" not in st.session_state:
         st.session_state.dataset_attack_results = pd.DataFrame(
-            columns=["Target Model", "Owned", "#Detected Members", "Mean Proba", "Accuracy", "AUC", "TPR@FPR=0.1"]
+            columns=["Target Model", "Owned External Ratio", "#Detected Members", "Mean Proba", "Accuracy", "AUC", "TPR@FPR=0.1"]
         )
     st.dataframe(st.session_state.dataset_attack_results, hide_index=True)
 
@@ -44,11 +44,6 @@ def run():
     if not all(k in st.session_state for k in ["target_models", "dataset_owned", "dataset_external"]):
         st.warning("Missing target models or ownership information from previous step.")
         return
-
-    if "dataset_attack_results" not in st.session_state:
-        st.session_state.dataset_attack_results = pd.DataFrame(
-            columns=["Target Model", "Owned", "#Detected Members", "Accuracy", "AUC", "TPR@FPR=0.1"]
-        )
 
     clf = st.session_state.get("inference_model")
     #set_global_target_models(st.session_state.target_models)
@@ -87,7 +82,6 @@ def run():
         i = st.session_state.target_model_idx
         target_model = st.session_state.target_models[i]
 
-        is_owned = i < int(len(st.session_state.target_models) * st.session_state.owned_model_ratio)
         X_train, X_test, X_ext, y_train, y_test, y_ext = st.session_state.target_splits[i]
         target_X_train = X_train
         target_y_train = y_train
@@ -181,11 +175,7 @@ def run():
         data_test_dict = {
             'prediction': list(train_t_preds) + list(test_t_preds),
             'error': list(train_t_errors) + list(test_t_errors),
-            'membership': (
-                list(np.ones(len(target_y_train))) + list(np.zeros(len(target_y_test)))
-                if is_owned else
-                list(np.zeros(len(target_y_train) + len(target_y_test)))
-            ),
+            'membership': list(np.ones(len(target_y_train))) + list(np.zeros(len(target_y_test))),
             'missing_preds_entropies': list(missing_train_t_entropies) + list(missing_test_t_entropies),
             'missing_preds_vars': list(missing_train_t_vars) + list(missing_test_t_vars),
             'ens_var_metric_1': list(ens_var_train_metric_1) + list(ens_var_test_metric_1),
@@ -246,7 +236,7 @@ def run():
 
         new_row = {
             "Target Model": i+1,
-            "Owned": is_owned,
+            "Owned External Ratio": st.session_state.target_stats[i][2],
             "#Detected Members": f"{int(detected)}/{total} ({percent:.0f}%)",
             "Mean Proba": round(mean_proba, 2),
             'std_proba': np.std(probas),
@@ -293,6 +283,6 @@ def run():
     st.markdown("---")
     col1, col2 = st.columns([1, 1])
     with col1:
-        if st.button("⬅ Back", use_container_width=True):
+        if st.button("⬅ Back", use_container_width=True, disabled=run_all):
             st.session_state.active_step -= 1
             st.rerun()
