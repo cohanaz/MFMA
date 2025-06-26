@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 import xgboost as xgb
 from sklearn.metrics import accuracy_score, roc_auc_score
 from app.utils.inference import plot_metrics_three_sets, compute_tpr_at_fpr
+import seaborn as sns
 
 
 def run():
@@ -71,6 +72,7 @@ def run():
         #Best Hyperparameters: {'colsample_bytree': 0.8, 'gamma': 0.1, 'learning_rate': 0.01, 'max_depth': 3, 'min_child_weight': 1, 'subsample': 0.8}
         clf = xgb.XGBClassifier(colsample_bytree=0.8, gamma=0.1, learning_rate=0.01, max_depth=5, min_child_weight=1, subsample= 0.8, n_estimators=400, random_state=42)
         clf.fit(X_train_att, y_train_att)
+        st.session_state.clf = clf
 
         # Predict
         pred_shadow_train = clf.predict(X_train_att)
@@ -150,6 +152,42 @@ def run():
 
     # הצגת הטבלה
     st.dataframe(df, use_container_width=True, hide_index=True, column_config=column_config)
+
+    # Plot feature importance if model was trained
+    if "infrence_results" in st.session_state and "metrics_target" in st.session_state:
+        st.markdown("### 🔎 Feature Importance")
+        import matplotlib.pyplot as plt
+        importances = st.session_state.clf.feature_importances_
+        features = st.session_state.clf.get_booster().feature_names
+        # Sort by importance
+        sorted_idx = np.argsort(importances)
+        sorted_features = np.array(features)[sorted_idx]
+        sorted_importances = importances[sorted_idx]
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.bar(sorted_features, sorted_importances)
+        ax.set_xlabel("Feature")
+        ax.set_ylabel("Importance")
+        ax.set_title("Feature Importance (Gain)")
+        ax.set_ylim(sorted_importances.min(), sorted_importances.max())
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        st.pyplot(fig)
+
+        # Plot pairwise feature correlation
+        st.markdown("### 🔗 Pairwise Feature Correlation")
+        # Use the features from the last used df_attack (if available)
+        if 'df_attack' in locals():
+            corr = df_attack[features].corr()
+        else:
+            # fallback: try to get from session_state
+            corr = pd.DataFrame(st.session_state.data_attack_dict)[features].corr()
+        fig_corr, ax_corr = plt.subplots(figsize=(min(12, 0.7*len(features)), 6))
+        sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", ax=ax_corr, cbar=True)
+        ax_corr.set_title("Pairwise Feature Correlation")
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
+        plt.tight_layout()
+        st.pyplot(fig_corr)
 
     # אתחול הדגל אם צריך
     if "confirm_reset" not in st.session_state:

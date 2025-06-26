@@ -18,7 +18,7 @@ USE_JOBLIB = True  # שנה ל-False אם אתה רוצה לחזור ל-ProcessP
 def run():
     st.subheader("Step 6: Run Dataset-level Inference Attack")
     
-    col1 = st.columns([1, 2, 1])[1]
+    col1, col2 = st.columns([1, 1])
     with col1:
         inference_threshold = st.slider(
             "Inference Attack Threshold",
@@ -28,6 +28,15 @@ def run():
             step=0.05,
             help="Threshold for the inference attack model to classify a sample as a member or non-member."
         )
+    with col2:
+        attack_mode = st.radio(
+            "Inference Test Compostion:",
+            options=["All", "Symmetric"],
+            index=0,
+            horizontal=True,
+            help="Choose whether to run the attack on all data or only on symmetric samples (50% members, 50% non-members)."
+        )
+        st.session_state.attack_mode = attack_mode
 
     st.markdown("### 📊 Attack Summary Table")
 
@@ -83,10 +92,18 @@ def run():
         target_model = st.session_state.target_models[i]
 
         X_train, X_test, X_ext, y_train, y_test, y_ext = st.session_state.target_splits[i]
-        target_X_train = X_train
-        target_y_train = y_train
-        target_X_test = X_test
-        target_y_test = y_test
+        # Adapt train/test sets for symmetric mode
+        if st.session_state.attack_mode == "Symmetric":
+            min_len = min(len(X_train), len(X_test))
+            target_X_train = X_train[:min_len]
+            target_y_train = y_train[:min_len]
+            target_X_test = X_test[:min_len]
+            target_y_test = y_test[:min_len]
+        else:
+            target_X_train = X_train
+            target_y_train = y_train
+            target_X_test = X_test
+            target_y_test = y_test
 
         train_t_preds = target_model.predict(target_X_train)
         test_t_preds = target_model.predict(target_X_test)

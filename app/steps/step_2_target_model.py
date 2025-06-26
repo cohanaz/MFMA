@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 from streamlit_option_menu import option_menu
-from app.utils.training import train_target_model
+from app.utils.training import train_target_model, train_RF_model, train_XGB_model
 
 def run():
     if st.session_state.dataset is not None:
@@ -59,9 +59,9 @@ def run():
         with centered_col:
             if st.button("Train Target Model", use_container_width=True):
                 if model_type == "XGBoost":
-                    model, X_train, X_test, X_ext, y_train, y_test, y_ext, of_ratio, r2_score = train_target_model(st.session_state.dataset, target_column, model_type="xgb")
+                    model, X_train, X_test, X_ext, y_train, y_test, y_ext, of_ratio, r2_score = train_XGB_model(st.session_state.dataset, feature_name=target_column, n_est=100, max_d=5)
                 else:
-                    model, X_train, X_test, X_ext, y_train, y_test, y_ext, of_ratio, r2_score = train_target_model(st.session_state.dataset, target_column, model_type="rf")
+                    model, X_train, X_test, X_ext, y_train, y_test, y_ext, of_ratio, r2_score = train_RF_model(st.session_state.dataset, feature_name=target_column, n_est=100, max_d=5)
 
                 st.session_state.target_model = model
                 st.session_state.target_X_train = X_train
